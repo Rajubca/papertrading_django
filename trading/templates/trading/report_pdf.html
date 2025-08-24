@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+{% load custom_filters %}
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Portfolio Report - {{ report.report_date|date:"F j, Y" }}</title>
+    <style>
+        @page {
+            size: a4 portrait;
+            margin: 2cm;
+            @frame footer {
+                -pdf-frame-content: footerContent;
+                bottom: 1cm;
+                margin-left: 2cm;
+                margin-right: 2cm;
+                height: 1cm;
+            }
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        }
+        h1 {
+            color: #2c3e50;
+            font-size: 24px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: #34495e;
+            font-size: 18px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .summary-cards {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .summary-card {
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            padding: 15px;
+            text-align: center;
+            width: 30%;
+        }
+        .summary-card h3 {
+            margin: 0;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        .summary-card .value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .table th {
+            background-color: #34495e;
+            color: white;
+            padding: 8px;
+            text-align: left;
+            border: 1px solid #2c3e50;
+        }
+        .table td {
+            padding: 8px;
+            border: 1px solid #bdc3c7;
+        }
+        .table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .positive {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .negative {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .footer {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Portfolio Performance Report</h1>
+        <p>Generated on: {{ report.report_date|date:"F j, Y" }}</p>
+        <p>Investor: {{ report.portfolio.user.username }}</p>
+    </div>
+
+    <!-- Portfolio Summary -->
+    <div class="summary-cards">
+        <div class="summary-card">
+            <h3>Total Portfolio Value</h3>
+            <div class="value">₹{{ report.total_value|floatformat:2 }}</div>
+        </div>
+        <div class="summary-card">
+            <h3>Cash Balance</h3>
+            <div class="value">₹{{ report.cash_balance|floatformat:2 }}</div>
+        </div>
+        <div class="summary-card">
+            <h3>Invested Value</h3>
+            <div class="value">₹{{ report.investment_value|floatformat:2 }}</div>
+        </div>
+    </div>
+
+    <!-- Performance Summary -->
+    {% if report.profit_loss != 0 %}
+    <h2>📈 Performance Summary</h2>
+    <div style="text-align: center; margin-bottom: 20px;">
+        <span style="font-size: 16px;">
+            {% if report.profit_loss >= 0 %}
+                Profit: <span class="positive">₹{{ report.profit_loss|floatformat:2 }} ({{ report.profit_loss_percentage|floatformat:2 }}%)</span>
+            {% else %}
+                Loss: <span class="negative">₹{{ report.profit_loss|abs_value|floatformat:2 }} ({{ report.profit_loss_percentage|abs_value|floatformat:2 }}%)</span>
+            {% endif %}
+        </span>
+    </div>
+    {% endif %}
+
+    <!-- Holdings Breakdown -->
+    <h2>📋 Holdings Breakdown</h2>
+    {% if report.holding_reports.all %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Symbol</th>
+                <th>Quantity</th>
+                <th>Avg. Buy Price</th>
+                <th>Current Price</th>
+                <th>Current Value</th>
+                <th>P/L</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for holding_report in report.holding_reports.all %}
+            <tr>
+                <td><strong>{{ holding_report.holding.stock.symbol }}</strong></td>
+                <td>{{ holding_report.quantity }}</td>
+                <td>₹{{ holding_report.average_price|floatformat:2 }}</td>
+                <td>₹{{ holding_report.current_price|floatformat:2 }}</td>
+                <td>₹{{ holding_report.current_value|floatformat:2 }}</td>
+                <td class="{% if holding_report.profit_loss >= 0 %}positive{% else %}negative{% endif %}">
+                    ₹{{ holding_report.profit_loss|floatformat:2 }}
+                    ({{ holding_report.profit_loss_percentage|floatformat:2 }}%)
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="background-color: #ecf0f1;">
+                <td colspan="4" style="text-align: right; font-weight: bold;">Total Investment:</td>
+                <td style="font-weight: bold;">₹{{ report.investment_value|floatformat:2 }}</td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+    {% else %}
+    <p>No holdings in this report.</p>
+    {% endif %}
+
+    <!-- Transaction History (Last 10 transactions) -->
+    <h2>💸 Recent Transactions</h2>
+    {% if recent_transactions %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Symbol</th>
+                <th>Type</th>
+                <th>Quantity</th>
+                <th>Price</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for transaction in recent_transactions %}
+            <tr>
+                <td>{{ transaction.timestamp|date:"M d, Y" }}</td>
+                <td>{{ transaction.stock.symbol }}</td>
+                <td>{{ transaction.get_transaction_type_display }}</td>
+                <td>{{ transaction.quantity }}</td>
+                <td>₹{{ transaction.price_per_share|floatformat:2 }}</td>
+                <td>₹{{ transaction.total_amount|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No recent transactions.</p>
+    {% endif %}
+
+    <div id="footerContent">
+        <div class="footer">
+            Generated by Paper Trading App on {{ generated_date|date:"F j, Y H:i" }} |
+            Page <pdf:pagenumber> of <pdf:pagecount>
+        </div>
+    </div>
+</body>
+</html>

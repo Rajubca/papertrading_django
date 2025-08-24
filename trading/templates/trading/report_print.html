@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+{% load humanize %}
+<html>
+<head>
+    <title>Portfolio Report - {{ report.report_date|date:"F j, Y" }}</title>
+    <meta charset="utf-8">
+    <style>
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 1cm;
+            }
+            body {
+                font-family: Arial, sans-serif;
+                font-size: 12px;
+                line-height: 1.4;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .page-break {
+                page-break-before: always;
+            }
+        }
+        @media screen {
+            body {
+                font-family: Arial, sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+                max-width: 210mm;
+                margin: 0 auto;
+                padding: 20px;
+                background: white;
+            }
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        h1 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 24px;
+        }
+        .summary-cards {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        .summary-card {
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            padding: 15px;
+            text-align: center;
+            min-width: 200px;
+            margin: 5px;
+            flex: 1;
+        }
+        .summary-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        .summary-card .value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            padding: 8px 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #34495e;
+            color: white;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .positive {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .negative {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .actions {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: #ecf0f1;
+            border-radius: 5px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 0 10px;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Portfolio Performance Report</h1>
+        <p>Generated on: {{ report.report_date|date:"F j, Y" }}</p>
+        <p>Investor: {{ report.portfolio.user.username }}</p>
+    </div>
+
+    <!-- Print Actions -->
+    <div class="actions no-print">
+        <p>This is a print-friendly version of your report. Use your browser's print function to save as PDF.</p>
+        <a href="javascript:window.print()" class="btn">🖨️ Print Report</a>
+        <a href="{% url 'trading:reports' %}" class="btn">← Back to Reports</a>
+    </div>
+
+    <!-- Portfolio Summary -->
+    <div class="summary-cards">
+        <div class="summary-card">
+            <h3>Total Portfolio Value</h3>
+            <div class="value">₹{{ report.total_value|floatformat:2|intcomma }}</div>
+        </div>
+        <div class="summary-card">
+            <h3>Cash Balance</h3>
+            <div class="value">₹{{ report.cash_balance|floatformat:2|intcomma }}</div>
+        </div>
+        <div class="summary-card">
+            <h3>Invested Value</h3>
+            <div class="value">₹{{ report.investment_value|floatformat:2|intcomma }}</div>
+        </div>
+    </div>
+
+    <!-- Performance Summary -->
+    {% if report.profit_loss != 0 %}
+    <div style="text-align: center; margin: 30px 0; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+        <h2 style="margin: 0 0 10px 0; color: #34495e;">📈 Performance Summary</h2>
+        <span style="font-size: 16px;">
+            {% if report.profit_loss >= 0 %}
+                Profit: <span class="positive">₹{{ report.profit_loss|floatformat:2 }} ({{ report.profit_loss_percentage|floatformat:2 }}%)</span>
+            {% else %}
+                Loss: <span class="negative">₹{{ report.profit_loss|floatformat:2 }} ({{ report.profit_loss_percentage|floatformat:2 }}%)</span>
+            {% endif %}
+        </span>
+    </div>
+    {% endif %}
+
+    <!-- Holdings Breakdown -->
+    <h2>📋 Holdings Breakdown</h2>
+    {% if report.holding_reports.all %}
+    <table>
+        <thead>
+            <tr>
+                <th>Symbol</th>
+                <th>Quantity</th>
+                <th>Avg. Buy Price</th>
+                <th>Current Price</th>
+                <th>Current Value</th>
+                <th>P/L</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for holding_report in report.holding_reports.all %}
+            <tr>
+                <td><strong>{{ holding_report.holding.stock.symbol }}</strong></td>
+                <td>{{ holding_report.quantity }}</td>
+                <td>₹{{ holding_report.average_price|floatformat:2 }}</td>
+                <td>₹{{ holding_report.current_price|floatformat:2 }}</td>
+                <td>₹{{ holding_report.current_value|floatformat:2 }}</td>
+                <td class="{% if holding_report.profit_loss >= 0 %}positive{% else %}negative{% endif %}">
+                    ₹{{ holding_report.profit_loss|floatformat:2 }}
+                    ({{ holding_report.profit_loss_percentage|floatformat:2 }}%)
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="background-color: #ecf0f1; font-weight: bold;">
+                <td colspan="4" style="text-align: right;">Total Investment:</td>
+                <td>₹{{ report.investment_value|floatformat:2|intcomma }}</td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+    {% else %}
+    <p style="text-align: center; color: #7f8c8d; font-style: italic;">No holdings in this report.</p>
+    {% endif %}
+
+    <!-- Footer -->
+    <div style="margin-top: 50px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #7f8c8d;">
+        <p>Generated by Paper Trading App on {% now "F j, Y H:i" %}</p>
+    </div>
+
+    <script>
+        // Auto-print when page loads (optional)
+        // window.onload = function() {
+        //     window.print();
+        // };
+    </script>
+</body>
+</html>

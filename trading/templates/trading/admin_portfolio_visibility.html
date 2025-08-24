@@ -1,0 +1,79 @@
+{% extends 'trading/base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2>📊 Portfolio Visibility Management</h2>
+            <p class="text-muted">Admin control over which portfolios are visible to users</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">All Portfolios</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Portfolio Name</th>
+                                    <th>User</th>
+                                    <th>Current Visibility</th>
+                                    <th>Total Value</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for portfolio in portfolios %}
+                                <tr>
+                                    <td class="fw-bold">{{ portfolio.name }}</td>
+                                    <td>{{ portfolio.user.username }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if portfolio.visibility == 'PUBLIC' %}success{% else %}warning{% endif %}">
+                                            {{ portfolio.get_visibility_display }}
+                                        </span>
+                                    </td>
+                                    <td>₹{{ portfolio.total_value|floatformat:2|intcomma }}</td>
+                                    <td>{{ portfolio.created_at|date:"M j, Y" }}</td>
+                                    <td>
+                                        <form method="post" class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="portfolio_id" value="{{ portfolio.id }}">
+                                            {% if portfolio.visibility == 'PUBLIC' %}
+                                                <input type="hidden" name="visibility" value="PRIVATE">
+                                                <button type="submit" class="btn btn-sm btn-warning">
+                                                    <i class="bi bi-eye-slash"></i> Hide
+                                                </button>
+                                            {% else %}
+                                                <input type="hidden" name="visibility" value="PUBLIC">
+                                                <button type="submit" class="btn btn-sm btn-success">
+                                                    <i class="bi bi-eye"></i> Show
+                                                </button>
+                                            {% endif %}
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4">
+                                        <div class="text-muted">
+                                            <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                                            <p class="mt-2">No portfolios found</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
