@@ -63,6 +63,15 @@ class Stock(models.Model):
 
     def __str__(self):
         return f"{self.symbol}"
+    
+    def update_price(self, new_price: Decimal) -> None:
+        """
+        Update the stock's current price and touch last_updated.
+        Pass a Decimal (or something Decimal() can parse).
+        """
+        self.current_price = Decimal(new_price)
+        # Include last_updated so auto_now actually writes when using update_fields
+        self.save(update_fields=["current_price", "last_updated"])
 
 from django.db import models
 from django.contrib.auth.models import User
@@ -173,7 +182,7 @@ class Transaction(models.Model):
         ('SELL', 'Sell'),
     )
 
-    portfolio = models.ForeignKey(Portfolio, on_delete=models.CASCADE)
+    portfolio = models.ForeignKey(Portfolio, on_delete=models.CASCADE, related_name="transactions")
     stock = models.ForeignKey(Stock, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     transaction_type = models.CharField(max_length=4, choices=TRANSACTION_TYPES)

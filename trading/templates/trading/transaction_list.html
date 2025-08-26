@@ -1,40 +1,82 @@
-<!-- Add this to your transaction_list.html template -->
-{% if portfolios and portfolios.count > 1 %}
-<div class="row mb-3">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-body py-2">
-                <div class="d-flex align-items-center">
-                    <label for="portfolioSelect" class="form-label mb-0 me-2">Filter by Portfolio:</label>
-                    <select class="form-select form-select-sm" style="width: auto;" id="portfolioSelect">
-                        <option value="">All Portfolios</option>
-                        {% for p in portfolios %}
-                        <option value="{{ p.id }}" {% if p.id == portfolio.id %}selected{% endif %}>
-                            {{ p.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+{% extends "base.html" %}
+{% load humanize %}
 
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Transactions — {{ portfolio.name }}</h4>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'trading:dashboard' %}?portfolio={{ portfolio.id }}">Back to dashboard</a>
+  </div>
+
+  {# Show the dropdown only if there are 2+ portfolios (use |length in templates) #}
+  {% if portfolios and portfolios|length > 1 %}
+  <div class="row mb-3">
+    <div class="col-md-12">
+      <div class="card">
+        <div class="card-body py-2">
+          <div class="d-flex align-items-center">
+            <label for="portfolioSelect" class="form-label mb-0 me-2">Filter by Portfolio:</label>
+            <select class="form-select form-select-sm" style="width:auto" id="portfolioSelect">
+              {% for p in portfolios %}
+              <option value="{{ p.id }}" {% if p.id == portfolio.id %}selected{% endif %}>{{ p.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if transactions %}
+  <div class="table-responsive">
+    <table class="table table-striped align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Date</th>
+          <th>Stock</th>
+          <th>Type</th>
+          <th class="text-end">Qty</th>
+          <th class="text-end">Price</th>
+          <th class="text-end">Total</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in transactions %}
+        <tr>
+          <td>{{ t.timestamp|date:"Y-m-d H:i" }}</td>
+          <td><a href="{% url 'trading:stock_detail' t.stock.id %}">{{ t.stock.symbol }}</a></td>
+          <td>
+            <span class="badge bg-{% if t.transaction_type == 'BUY' %}success{% else %}danger{% endif %}">
+              {{ t.get_transaction_type_display }}
+            </span>
+          </td>
+          <td class="text-end">{{ t.quantity }}</td>
+          <td class="text-end">₹{{ t.price_per_share|floatformat:2|intcomma }}</td>
+          <td class="text-end">₹{{ t.total_cost|floatformat:2|intcomma }}</td>
+          <td>{{ t.notes|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="alert alert-info mb-0">No transactions for this portfolio yet.</div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const portfolioSelect = document.getElementById('portfolioSelect');
-    if (portfolioSelect) {
-        portfolioSelect.addEventListener('change', function() {
-            const portfolioId = this.value;
-            const url = new URL(window.location.href);
-            if (portfolioId) {
-                url.searchParams.set('portfolio', portfolioId);
-            } else {
-                url.searchParams.delete('portfolio');
-            }
-            window.location.href = url.toString();
-        });
-    }
+document.addEventListener('DOMContentLoaded', function () {
+  const el = document.getElementById('portfolioSelect');
+  if (!el) return;
+  el.addEventListener('change', function () {
+    const url = new URL(window.location.href);
+    url.searchParams.set('portfolio', this.value);
+    window.location.href = url.toString();
+  });
 });
 </script>
-{% endif %}
+{% endblock %}

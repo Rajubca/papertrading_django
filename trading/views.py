@@ -19,7 +19,7 @@ def dashboard(request):
     portfolios = Portfolio.objects.filter(
         user=request.user,
         visibility='PUBLIC'
-    )
+    ).prefetch_related('holdings__stock')  # speed-up
 
     # If no portfolios exist, render template with empty context
     if not portfolios.exists():
@@ -42,11 +42,17 @@ def dashboard(request):
     # Store the active portfolio in session
     request.session['active_portfolio_id'] = portfolio.id
 
-    # Get holdings for this portfolio
-    holdings = Holding.objects.filter(portfolio=portfolio)
+    # inside dashboard() after you get `holdings`
+    holdings = Holding.objects.filter(portfolio=portfolio).select_related('stock')
+
+    # Current value of all holdings
+    current_holdings_value = sum(h.stock.current_price * h.quantity for h in holdings)
 
     # Get recent transactions (last 10)
     transactions = Transaction.objects.filter(portfolio=portfolio).order_by('-timestamp')[:10]
+    # Cost basis (what you paid)
+    cost_basis = sum(h.average_buy_price * h.quantity for h in holdings)
+    
 
     # Generate performance data (last 30 days)
     performance_data = generate_performance_data(portfolio)
@@ -55,17 +61,66 @@ def dashboard(request):
     total_value = portfolio.cash_balance + portfolio.invested_value
 
     # Check if initial_cash attribute exists
-    if hasattr(portfolio, 'initial_cash'):
-        initial_cash = portfolio.initial_cash
-    else:
-        initial_cash = portfolio.cash_balance + portfolio.invested_value
+    # if hasattr(portfolio, 'initial_cash'):
+    #     initial_cash = portfolio.initial_cash
+    # else:
+    #     initial_cash = portfolio.cash_balance + portfolio.invested_value
 
-    profit_loss = total_value - initial_cash
+    # profit_loss = total_value - initial_cash
 
-    if initial_cash:
-        profit_loss_percentage = (profit_loss / initial_cash * Decimal('100')).quantize(Decimal('0.01'))
-    else:
-        profit_loss_percentage = Decimal('0.00')
+    # if initial_cash:
+    #     profit_loss_percentage = (profit_loss / initial_cash * Decimal('100')).quantize(Decimal('0.01'))
+    # else:
+    #     profit_loss_percentage = Decimal('0.00')
+
+    # Unrealized P/L (this is what you want on the card)
+    unrealized_pl = current_holdings_value - cost_basis
+
+    from decimal import Decimal
+    unrealized_pl_pct = (unrealized_pl / cost_basis * Decimal('100')) if cost_basis else Decimal('0.00')
+
+    # Optional: keep “since inception” as a separate metric (don’t show it as P/L by default)
+    initial_cash = getattr(portfolio, 'initial_cash', total_value)
+    since_inception_pl = total_value - initial_cash
+    since_inception_pl_pct = ((since_inception_pl / initial_cash) * Decimal('100')) if initial_cash else Decimal('0.00')
+    all_rows = []
+    total_cash = Decimal('0')
+    total_invested_current = Decimal('0')
+    total_cost_basis = Decimal('0')
+
+    for p in portfolios:
+        hlds = list(p.holdings.all())
+        invested_cur = sum((h.stock.current_price * h.quantity) for h in hlds)
+        cost_b = sum((h.average_buy_price * h.quantity) for h in hlds)
+        unreal = invested_cur - cost_b
+        total_val_p = p.cash_balance + invested_cur
+
+        all_rows.append({
+            'id': p.id,
+            'name': p.name,
+            'cash': p.cash_balance,
+            'invested_current': invested_cur,
+            'total_value': total_val_p,
+            'unrealized_pl': unreal,
+        })
+
+        total_cash += p.cash_balance
+        total_invested_current += invested_cur
+        total_cost_basis += cost_b
+
+    combined_unreal = total_invested_current - total_cost_basis
+    combined_unreal_pct = (combined_unreal / total_cost_basis * Decimal('100')) if total_cost_basis else Decimal('0.00')
+    combined_total_value = total_cash + total_invested_current
+
+    all_portfolios_summary = {
+        'total_cash': total_cash,
+        'total_invested_current': total_invested_current,
+        'total_value': combined_total_value,
+        'unrealized_pl': combined_unreal,
+        'unrealized_pl_pct': combined_unreal_pct,
+        'count': portfolios.count(),
+    }
+    # ------------------------------------------------------------
 
     context = {
         'portfolio': portfolio,
@@ -74,10 +129,17 @@ def dashboard(request):
         'transactions': transactions,
         'performance_data': json.dumps(performance_data),
         'total_value': total_value,
-        'profit_loss': profit_loss,
-        'profit_loss_percentage': profit_loss_percentage,
-        'initial_cash': initial_cash,
+        'unrealized_pl': unrealized_pl,
+        'unrealized_pl_pct': unrealized_pl_pct,
+        'cost_basis': cost_basis,
+        'since_inception_pl': since_inception_pl,
+        'since_inception_pl_pct': since_inception_pl_pct,
+
+        # NEW:
+        'all_portfolios_summary': all_portfolios_summary,
+        'all_portfolios_rows': all_rows,
     }
+    
 
     return render(request, 'trading/dashboard.html', context)
 
@@ -288,7 +350,16 @@ def transaction_list(request):
     else:
         portfolio = portfolios.first()
 
-    transactions = portfolio.transactions.all().select_related('stock').order_by('-timestamp')
+    # transactions = Transaction.portfolio.all().select_related('stock').order_by('-timestamp')
+    # trading/views.py  (inside transaction_list)
+    from .models import Transaction
+
+    transactions = (
+        Transaction.objects
+        .filter(portfolio=portfolio)
+        .select_related('stock')
+        .order_by('-timestamp')
+    )
 
     context = {
         'transactions': transactions,
@@ -301,20 +372,30 @@ def transaction_list(request):
 
 @login_required
 def reports(request):
-    """
-    Displays a list of all portfolio reports for the current user.
-    """
-    # Get all portfolios for the current user
-    user_portfolios = Portfolio.objects.filter(user=request.user)
+    from .models import Portfolio, PortfolioReport
 
-    # Get all reports related to those portfolios
-    reports = PortfolioReport.objects.filter(portfolio__in=user_portfolios).order_by('-report_date', '-created_at')
+    # all portfolios for the user (to populate a dropdown)
+    user_portfolios = Portfolio.objects.filter(user=request.user).order_by('name')
 
-    context = {
+    selected_id = request.GET.get('portfolio')
+    if selected_id:
+        try:
+            selected = user_portfolios.get(id=selected_id)
+            qs = PortfolioReport.objects.filter(portfolio=selected)
+        except Portfolio.DoesNotExist:
+            selected = None
+            qs = PortfolioReport.objects.filter(portfolio__in=user_portfolios)
+    else:
+        selected = None
+        qs = PortfolioReport.objects.filter(portfolio__in=user_portfolios)
+
+    reports = qs.order_by('-report_date', '-created_at')
+
+    return render(request, 'trading/reports.html', {
         'reports': reports,
-    }
-    return render(request, 'trading/reports.html', context)
-
+        'portfolios': user_portfolios,
+        'selected_portfolio': selected,
+    })
 
 @login_required
 def watchlists(request):
@@ -689,19 +770,24 @@ def generate_pdf_report(report):
 
     return response
 
-
 @login_required
-def generate_report(request):
-    portfolio = Portfolio.objects.filter(user=request.user).first()
+def generate_report(request, portfolio_id=None):
+    # allow /reports/generate/123/ or /reports/generate/?portfolio=123
+    pid = portfolio_id or request.GET.get('portfolio')
+
+    try:
+        portfolio = Portfolio.objects.get(id=pid, user=request.user)
+    except (Portfolio.DoesNotExist, TypeError, ValueError):
+        messages.error(request, "Select a valid portfolio to generate a report.")
+        return redirect('trading:reports')
 
     try:
         report = portfolio.generate_report()
-        messages.success(request, f"Report generated for {report.report_date}")
+        messages.success(request, f"Report generated for {report.report_date} • {portfolio.name}")
         return redirect('trading:report_detail', pk=report.id)
     except Exception as e:
         messages.error(request, f"Error generating report: {str(e)}")
         return redirect('trading:reports')
-
 
 from django.contrib.auth.decorators import login_required
 

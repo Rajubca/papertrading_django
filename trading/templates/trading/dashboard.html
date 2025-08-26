@@ -81,21 +81,115 @@
                                 </div>
                             </div>
                             <div class="col-md-3">
-                                <div class="card {% if profit_loss >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white mb-0">
+                                <div class="card {% if unrealized_pl >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white mb-0">
                                     <div class="card-body py-3">
-                                        <h6 class="card-title">Total P/L</h6>
-                                        <h3 class="card-text">
-                                            ₹{{ profit_loss|floatformat:2|intcomma }}
-                                            <small>({{ profit_loss_percentage|floatformat:2 }}%)</small>
-                                        </h3>
+                                    <h6 class="card-title">Unrealized P/L</h6>
+                                    <h3 class="card-text">
+                                        ₹{{ unrealized_pl|floatformat:2|intcomma }}
+                                        <small>({{ unrealized_pl_pct|floatformat:2 }}%)</small>
+                                    </h3>
+                                    <div class="small text-white-50">
+                                        Since inception: ₹{{ since_inception_pl|floatformat:2|intcomma }}
+                                        ({{ since_inception_pl_pct|floatformat:2 }}%)
+                                    </div>
                                     </div>
                                 </div>
-                            </div>
+                                </div>
+
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+        {# --- All Portfolios (Combined) --- #}
+<div class="row mb-4">
+  <div class="col-md-12">
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="card-title mb-0">All Portfolios — Combined</h4>
+        <small class="text-muted">
+          {{ all_portfolios_summary.count }} portfolio{{ all_portfolios_summary.count|pluralize }}
+        </small>
+      </div>
+      <div class="card-body">
+        <div class="row text-center">
+          <div class="col-md-3">
+            <div class="card bg-primary text-white mb-0">
+              <div class="card-body py-3">
+                <h6 class="card-title">Total Value</h6>
+                <h3 class="card-text">
+                  ₹{{ all_portfolios_summary.total_value|floatformat:2|intcomma }}
+                </h3>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card bg-success text-white mb-0">
+              <div class="card-body py-3">
+                <h6 class="card-title">Cash (All)</h6>
+                <h3 class="card-text">
+                  ₹{{ all_portfolios_summary.total_cash|floatformat:2|intcomma }}
+                </h3>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card bg-info text-white mb-0">
+              <div class="card-body py-3">
+                <h6 class="card-title">Invested (All)</h6>
+                <h3 class="card-text">
+                  ₹{{ all_portfolios_summary.total_invested_current|floatformat:2|intcomma }}
+                </h3>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card {% if all_portfolios_summary.unrealized_pl >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white mb-0">
+              <div class="card-body py-3">
+                <h6 class="card-title">Unrealized P/L (All)</h6>
+                <h3 class="card-text">
+                  ₹{{ all_portfolios_summary.unrealized_pl|floatformat:2|intcomma }}
+                  <small>({{ all_portfolios_summary.unrealized_pl_pct|floatformat:2 }}%)</small>
+                </h3>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {# Per-portfolio breakdown #}
+        <div class="table-responsive mt-3">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Portfolio</th>
+                <th class="text-end">Cash</th>
+                <th class="text-end">Invested</th>
+                <th class="text-end">Total</th>
+                <th class="text-end">Unrealized P/L</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in all_portfolios_rows %}
+              <tr>
+                <td>
+                  <a href="?portfolio={{ r.id }}">{{ r.name }}</a>
+                </td>
+                <td class="text-end">₹{{ r.cash|floatformat:2|intcomma }}</td>
+                <td class="text-end">₹{{ r.invested_current|floatformat:2|intcomma }}</td>
+                <td class="text-end fw-bold">₹{{ r.total_value|floatformat:2|intcomma }}</td>
+                <td class="text-end {% if r.unrealized_pl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                  ₹{{ r.unrealized_pl|floatformat:2|intcomma }}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
 
     <!-- Charts & Recent Transactions -->
     <div class="row mb-4">
@@ -234,13 +328,15 @@
                             <tfoot class="table-secondary">
                                 <tr>
                                     <th colspan="5" class="text-end">Total:</th>
-                                    <th class="text-end fw-bold">₹{{ portfolio.invested_value|floatformat:2 }}</th>
-                                    <th class="text-end {% if profit_loss >= 0 %}text-success{% else %}text-danger{% endif %}">
-                                        ₹{{ profit_loss|floatformat:2 }}
+                                    <th class="text-end fw-bold">₹{{ portfolio.invested_value|floatformat:2|intcomma }}</th>
+                                    <th class="text-end {% if unrealized_pl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ₹{{ unrealized_pl|floatformat:2|intcomma }}
+                                    <small>({{ unrealized_pl_pct|floatformat:2 }}%)</small>
                                     </th>
                                     <th></th>
                                 </tr>
-                            </tfoot>
+                                </tfoot>
+
                             {% endif %}
                         </table>
                     </div>
