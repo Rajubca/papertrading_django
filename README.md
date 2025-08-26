@@ -1,1 +1,1 @@
-This is in Dgango and provide facility to workin live market paper trading
+This is in Django and provide facility to workin live market paper trading
