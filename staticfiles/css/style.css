@@ -1,0 +1,15 @@
+/* Default Light Theme */
+body {
+    background-color: white;
+    color: black;
+}
+
+/* Dark Theme */
+body.dark-theme {
+    background-color: #121212;
+    color: white;
+}
+
+.navbar {
+    padding: 10px;
+}

@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h3>User Profile</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-3">
+                            <strong>Username:</strong>
+                        </div>
+                        <div class="col-sm-9">
+                            {{ user.username }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-3">
+                            <strong>Email:</strong>
+                        </div>
+                        <div class="col-sm-9">
+                            {{ user.email }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-3">
+                            <strong>First name:</strong>
+                        </div>
+                        <div class="col-sm-9">
+                            {{ user.first_name }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-3">
+                            <strong>Last name:</strong>
+                        </div>
+                        <div class="col-sm-9">
+                            {{ user.last_name }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-9 offset-sm-3">
+                            <a href="{% url 'admin:password_change' %}" class="btn btn-primary">
+                                Change Password
+                            </a>
+                            <a href="{% url 'admin:logout' %}" class="btn btn-outline-secondary">
+                                Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

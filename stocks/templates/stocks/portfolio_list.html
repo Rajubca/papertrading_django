@@ -1,0 +1,11 @@
+<h2>My Portfolios</h2>
+<ul>
+  {% for p in portfolios %}
+    <li>{{ p.name }}
+      <a href="{% url 'stocks:portfolio_delete' p.id %}">Delete</a>
+    </li>
+  {% empty %}
+    <li>No portfolios yet.</li>
+  {% endfor %}
+</ul>
+<a href="{% url 'stocks:portfolio_create' %}">Create new</a>

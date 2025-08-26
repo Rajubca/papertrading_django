@@ -12,10 +12,11 @@ urlpatterns = [
     # Admin management
     path('admin/portfolio-visibility/', views.manage_portfolio_visibility, name='admin_portfolio_visibility'),
     path('ajax/calc-order/', views.calculate_order, name='calculate_order'),
-    #Staff
+    # Staff
     path('admin/portfolio-manager/', views.portfolio_manager, name='portfolio_manager'),
     path('admin/portfolio/bulk-update/', views.bulk_update_visibility, name='bulk_update_visibility'),
-    path('admin/portfolio/<int:portfolio_id>/toggle-visibility/', views.toggle_portfolio_visibility, name='toggle_portfolio_visibility'),
+    path('admin/portfolio/<int:portfolio_id>/toggle-visibility/', views.toggle_portfolio_visibility,
+         name='toggle_portfolio_visibility'),
     # Portfolios
     path('portfolios/', views.portfolio_list, name='portfolio_list'),
     path('portfolios/create/', views.create_portfolio, name='create_portfolio'),
@@ -34,15 +35,19 @@ urlpatterns = [
     # trading/urls.py calculate order
     path('ajax/calc-order/', views.calculate_order_summary, name='calculate_order'),
 
-
     # Transactions
     path('transactions/', views.transaction_list, name='transaction_list'),
     # Add this URL pattern to your urlpatterns list
     path('transactions/history/', views.transaction_list, name='transaction_history'),
 
     # Reports
+    # path('reports/', views.reports, name='reports'),
+    # path('reports/<int:pk>/', views.report_detail, name='report_detail'),
     path('reports/', views.reports, name='reports'),
-    path('reports/<int:pk>/', views.report_detail, name='report_detail'),
+    path('reports/generate/', views.generate_report, name='generate_report'),
+    path('reports/<int:portfolio_id>/<int:pk>/', views.report_detail, name='report_detail'),
+    # path('reports/<int:pk>/', views.report_detail, name='report_detail'),
+    path('reports/delete/<int:pk>/', views.delete_report, name='delete_report'),
 
     # Watchlists
     path('watchlists/', views.watchlists, name='watchlists'),

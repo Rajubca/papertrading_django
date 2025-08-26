@@ -1,0 +1,52 @@
+{% extends "stocks/base.html" %}
+{% block title %}Orders History{% endblock %}
+{% block content %}
+<div class="row gx-4 gy-4">
+  <div class="col-12">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="card-head d-flex justify-content-between align-items-center">
+          <div>Orders / Trades History</div>
+          <div class="small-muted">Showing latest first</div>
+        </div>
+
+        <div class="table-responsive mt-3">
+          <table class="table table-striped">
+            <thead class="table-light">
+              <tr>
+                <th>Time</th>
+                <th>Symbol</th>
+                <th>Type</th>
+                <th>Quantity</th>
+                <th>Price</th>
+                <th>Net</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for t in trades %}
+                <tr>
+                  <td class="small-muted">{{ t.timestamp|date:"d M Y H:i:s" }}</td>
+                  <td><a href="{% url 'stocks:detail' t.stock.symbol %}">{{ t.stock.symbol }}</a></td>
+                  <td>{{ t.get_trade_type_display }}</td>
+                  <td>{{ t.quantity }}</td>
+                  <td>₹{{ t.price }}</td>
+                  <td>
+                    {% if t.trade_type == 'BUY' %}
+                      <span class="small-muted">-₹{{ t.price|floatformat:2 }} × {{ t.quantity }}</span>
+                    {% else %}
+                      <span class="small-muted">+₹{{ t.price|floatformat:2 }} × {{ t.quantity }}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="6" class="text-center small-muted">No trades yet.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

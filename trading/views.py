@@ -1,5 +1,3 @@
-import json
-
 # trading/views.py
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
@@ -19,7 +17,8 @@ def dashboard(request):
     portfolios = Portfolio.objects.filter(
         user=request.user,
         visibility='PUBLIC'
-    )
+
+    ).prefetch_related('holdings__stock')  # speed-up
 
     # If no portfolios exist, render template with empty context
     if not portfolios.exists():
@@ -288,8 +287,15 @@ def transaction_list(request):
     else:
         portfolio = portfolios.first()
 
-    transactions = portfolio.transactions.all().select_related('stock').order_by('-timestamp')
+    # trading/views.py  (inside transaction_list)
+    from .models import Transaction
 
+    transactions = (
+        Transaction.objects
+            .filter(portfolio=portfolio)
+            .select_related('stock')
+            .order_by('-timestamp')
+    )
     context = {
         'transactions': transactions,
         'portfolio': portfolio,
@@ -299,21 +305,59 @@ def transaction_list(request):
     return render(request, 'trading/transaction_list.html', context)
 
 
+# views.py
 @login_required
 def reports(request):
     """
     Displays a list of all portfolio reports for the current user.
     """
     # Get all portfolios for the current user
-    user_portfolios = Portfolio.objects.filter(user=request.user)
+    portfolios = Portfolio.objects.filter(user=request.user)
 
-    # Get all reports related to those portfolios
-    reports = PortfolioReport.objects.filter(portfolio__in=user_portfolios).order_by('-report_date', '-created_at')
+    # Get portfolio filter from query parameters
+    portfolio_id = request.GET.get('portfolio_id')
+    selected_portfolio = None
+
+    if portfolio_id:
+        try:
+            selected_portfolio = portfolios.get(id=portfolio_id)
+            reports = PortfolioReport.objects.filter(portfolio=selected_portfolio).order_by('-report_date',
+                                                                                            '-created_at')
+        except Portfolio.DoesNotExist:
+            reports = PortfolioReport.objects.filter(portfolio__in=portfolios).order_by('-report_date', '-created_at')
+    else:
+        reports = PortfolioReport.objects.filter(portfolio__in=portfolios).order_by('-report_date', '-created_at')
 
     context = {
         'reports': reports,
+        'portfolios': portfolios,
+        'selected_portfolio': selected_portfolio,
     }
     return render(request, 'trading/reports.html', context)
+
+
+@login_required
+def generate_report(request):
+    """
+    Generate a report for a specific portfolio
+    """
+    if request.method == 'POST':
+        portfolio_id = request.POST.get('portfolio_id')
+        if not portfolio_id:
+            messages.error(request, "Please select a portfolio to generate a report for.")
+            return redirect('trading:reports')
+
+        try:
+            portfolio = Portfolio.objects.get(id=portfolio_id, user=request.user)
+            report = portfolio.generate_report()
+            messages.success(request, f"Report generated for {portfolio.name} on {report.report_date}")
+            return redirect('trading:report_detail', portfolio_id=portfolio.id, pk=report.id)
+        except Portfolio.DoesNotExist:
+            messages.error(request, "Portfolio not found.")
+        except Exception as e:
+            messages.error(request, f"Error generating report: {str(e)}")
+
+    return redirect('trading:reports')
 
 
 @login_required
@@ -486,19 +530,35 @@ def delete_portfolio(request, pk):
     return render(request, 'trading/delete_portfolio.html', context)
 
 
+from django.contrib.auth.decorators import login_required
+from .models import HoldingReport
+
+
+# views.py
 @login_required
-def report_detail(request, pk):
-    report = get_object_or_404(PortfolioReport, pk=pk, portfolio__user=request.user)
+def report_detail(request, portfolio_id, pk):
+    """
+    Displays a specific report for a specific portfolio.
+    """
+    # Get the portfolio (ensure it belongs to the user)
+    portfolio = get_object_or_404(Portfolio, id=portfolio_id, user=request.user)
+
+    # Get the specific report for this portfolio
+    report = get_object_or_404(PortfolioReport, pk=pk, portfolio=portfolio)
+
+    # Get all holding reports related to this specific portfolio report
+    holding_reports = HoldingReport.objects.filter(report=report)
 
     # Get recent transactions for this portfolio (last 10)
     recent_transactions = Transaction.objects.filter(
-        portfolio=report.portfolio
+        portfolio=portfolio
     ).select_related('stock').order_by('-timestamp')[:10]
 
-    # Check if PDF/print version is requested
+    # Check if PDF version is requested
     if request.GET.get('export') == 'pdf':
         return render(request, 'trading/report_pdf.html', {
             'report': report,
+            'holding_reports': holding_reports,
             'recent_transactions': recent_transactions,
             'generated_date': timezone.now(),
             'is_print_view': True
@@ -507,11 +567,11 @@ def report_detail(request, pk):
     # Normal HTML view
     return render(request, 'trading/report_detail.html', {
         'report': report,
-        'recent_transactions': recent_transactions
+        'holding_reports': holding_reports,
+        'recent_transactions': recent_transactions,
+        'portfolio': portfolio
     })
 
-
-from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 from django.contrib.auth.decorators import login_required
 
@@ -534,10 +594,9 @@ def stock_transactions_api(request, stock_id):
 
             # Get transactions before the report date for this stock
             transactions = Transaction.objects.filter(
-                portfolio=report.portfolio,
-                stock=stock,
-                timestamp__lte=report.report_date
-            ).order_by('-timestamp')[:20]  # Last 20 transactions
+                stock=stock
+            ).order_by('-timestamp')[:20]
+
         else:
             # Get all transactions for this stock
             transactions = Transaction.objects.filter(
@@ -690,18 +749,28 @@ def generate_pdf_report(report):
     return response
 
 
+# In your trading/views.py
+
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from .models import PortfolioReport
+
+
 @login_required
-def generate_report(request):
-    portfolio = Portfolio.objects.filter(user=request.user).first()
+def delete_report(request, pk):
+    """
+    Deletes a portfolio report.
+    """
+    if request.method == 'POST':
+        # Get the report to delete, ensuring it belongs to the current user's portfolio.
+        report = get_object_or_404(PortfolioReport, pk=pk, portfolio__user=request.user)
+        report.delete()
+        messages.success(request, "Report successfully deleted.")
+    return redirect('trading:reports')
 
-    try:
-        report = portfolio.generate_report()
-        messages.success(request, f"Report generated for {report.report_date}")
-        return redirect('trading:report_detail', pk=report.id)
-    except Exception as e:
-        messages.error(request, f"Error generating report: {str(e)}")
-        return redirect('trading:reports')
 
+# In your trading/views.py
 
 from django.contrib.auth.decorators import login_required
 
@@ -948,7 +1017,7 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
-from django.http import JsonResponse, HttpResponse
+from django.http import HttpResponse
 from decimal import Decimal
 from .models import Holding, PortfolioReport
 from .forms import WatchlistForm, PortfolioForm  # Make sure to import PortfolioForm
@@ -1167,7 +1236,6 @@ def trade_stock(http_request, stock_id=None):
 # trading/views.py
 from django.views.decorators.http import require_POST
 
-import json
 from django.views.decorators.csrf import csrf_exempt
 
 

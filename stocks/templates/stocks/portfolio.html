@@ -1,0 +1,57 @@
+{% extends "stocks/base.html" %}
+{% block title %}Portfolio{% endblock %}
+{% block content %}
+<div class="row gx-4 gy-4">
+  <div class="col-12">
+    <div class="card shadow-sm">
+      <div class="card-body d-flex align-items-center justify-content-between">
+        <div>
+          <div class="card-head">Your Portfolio</div>
+          <div class="small-muted">Overview of holdings, average price and current P&L</div>
+        </div>
+        <div class="text-end">
+          <div class="h5 mb-0 account-balance">Balance: ₹{{ account.virtual_balance }}</div>
+          <div class="small-muted">Realized P&L: <span class="{% if account.total_pnl >= 0 %}pnl-positive{% else %}pnl-negative{% endif %}">₹{{ account.total_pnl }}</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead class="table-light">
+              <tr>
+                <th>Symbol</th>
+                <th>Qty</th>
+                <th>Avg Price</th>
+                <th>Current Price</th>
+                <th>Unrealized P&L</th>
+                <th>Realized P&L</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for sym,data in holdings.items %}
+                <tr>
+                  <td><a href="{% url 'stocks:detail' data.stock.symbol %}" class="fw-bold">{{ data.stock.symbol }}</a></td>
+                  <td data-holding-qty="{{ data.stock.symbol }}">{{ data.quantity }}</td>
+                  <td data-holding-avg="{{ data.stock.symbol }}">{% if data.avg_price %}₹{{ data.avg_price }}{% else %}—{% endif %}</td>
+                  <td>{% if data.current_price %}₹{{ data.current_price }}{% else %}—{% endif %}</td>
+                  <td><span class="{% if data.unrealized_pnl >= 0 %}pnl-positive{% else %}pnl-negative{% endif %}">₹{{ data.unrealized_pnl }}</span></td>
+                  <td><span class="{% if data.realized_pnl >= 0 %}pnl-positive{% else %}pnl-negative{% endif %}">₹{{ data.realized_pnl }}</span></td>
+                  <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'stocks:detail' data.stock.symbol %}">Trade</a></td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="7" class="text-center small-muted">You have no holdings yet.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

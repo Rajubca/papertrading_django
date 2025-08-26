@@ -1,0 +1,2 @@
+2025-08-25 22:04:20,651 - ERROR - Error importing CSV: 'dict' object is not callable
+2025-08-25 22:19:00,592 - INFO - Imported: 134474, Updated: 16393, Skipped: 0

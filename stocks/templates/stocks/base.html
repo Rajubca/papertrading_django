@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Stocks App{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+      body { background: #f8f9fa; }
+      .app-container { max-width: 1200px; margin: 24px auto; }
+      .card-head { font-weight: 600; }
+      .price { font-weight: 700; font-size: 1.05rem; }
+      .small-muted { color: #6c757d; font-size: .9rem; }
+      .pnl-positive { color: #198754; }
+      .pnl-negative { color: #dc3545; }
+      .table-fixed thead th { position: sticky; top: 0; background: #fff; z-index: 1; }
+      .btn-wide { min-width: 110px; }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+      <div class="container">
+        <a class="navbar-brand fw-bold" href="{% url 'stocks:watchlist' %}">Shree Hari Trades</a>
+        <div class="collapse navbar-collapse" id="navMenu">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <li class="nav-item"><a class="nav-link" href="{% url 'stocks:watchlist' %}">Dashboard</a></li>
+            <li class="nav-item"><a class="nav-link" href="{% url 'stocks:portfolio' %}">Portfolio</a></li>
+            <li class="nav-item"><a class="nav-link" href="{% url 'stocks:orders_history' %}">Orders</a></li>
+          </ul>
+          <ul class="navbar-nav ms-auto">
+            {% if request.user.is_authenticated %}
+            <li class="nav-item"><span class="nav-link small-muted">Signed in as <strong>{{ request.user.username }}</strong></span></li>
+            <li class="nav-item"><a class="nav-link" href="{% url 'logout' %}">Logout</a></li>
+            {% else %}
+            <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Login</a></li>
+            {% endif %}
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <main class="app-container">
+      {% block content %}{% endblock %}
+    </main>
+
+    <div id="ajax-toast-area" class="position-fixed top-0 end-0 p-3" style="z-index: 1100;"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      function getCookie(name) {
+          let cookieValue = null;
+          if (document.cookie && document.cookie !== '') {
+              const cookies = document.cookie.split(';');
+              for (let i = 0; i < cookies.length; i++) {
+                  const cookie = cookies[i].trim();
+                  if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                      cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                      break;
+                  }
+              }
+          }
+          return cookieValue;
+      }
+      const csrftoken = getCookie('csrftoken');
+
+      function showToast(message, type = 'info', timeout = 3000) {
+        const toastId = 't' + Math.random().toString(36).substr(2, 6);
+        const colorClass = type === 'success' ? 'bg-success text-white' : (type === 'danger' ? 'bg-danger text-white' : 'bg-secondary text-white');
+        const html = `
+          <div id="${toastId}" class="toast align-items-center ${colorClass} border-0 mb-2" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+              <div class="toast-body">${message}</div>
+              <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+          </div>
+        `;
+        const area = document.getElementById('ajax-toast-area');
+        if (!area) return;
+        area.insertAdjacentHTML('beforeend', html);
+        const el = document.getElementById(toastId);
+        const bsToast = new bootstrap.Toast(el, { delay: timeout });
+        bsToast.show();
+        setTimeout(() => { try { el.remove() } catch(e){} }, timeout + 500);
+      }
+
+      async function postFormAjax(formEl) {
+        const url = formEl.getAttribute('action') || window.location.href;
+        const formData = new FormData(formEl);
+        const headers = {
+          'X-CSRFToken': csrftoken,
+          'X-Requested-With': 'XMLHttpRequest'
+        };
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: formData,
+        });
+        const contentType = resp.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = await resp.json();
+          if (!resp.ok) throw data;
+          return data;
+        } else {
+          const text = await resp.text();
+          if (!resp.ok) throw { error: text || 'Request failed' };
+          return { success: true, html: text };
+        }
+      }
+    </script>
+  </body>
+</html>

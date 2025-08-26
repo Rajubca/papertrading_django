@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 {% load custom_filters %}
+{% load humanize %}
 <html>
 <head>
     <meta charset="utf-8">
@@ -143,6 +144,7 @@
                 <th>Current Price</th>
                 <th>Current Value</th>
                 <th>P/L</th>
+                <th>notes</th>
             </tr>
         </thead>
         <tbody>
@@ -157,6 +159,7 @@
                     ₹{{ holding_report.profit_loss|floatformat:2 }}
                     ({{ holding_report.profit_loss_percentage|floatformat:2 }}%)
                 </td>
+                <td>{{ holding_report.notes }}</td>
             </tr>
             {% endfor %}
         </tbody>

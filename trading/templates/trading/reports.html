@@ -7,19 +7,88 @@
         <div class="col-md-12">
             <div class="d-flex justify-content-between align-items-center">
                 <h2>📊 Portfolio Reports</h2>
-                <form method="post" action="{% url 'trading:generate_report' %}">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-plus-circle"></i> Generate New Report
-                    </button>
-                </form>
             </div>
         </div>
     </div>
 
+    <!-- Portfolio Selection and Report Generation -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Generate New Report</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'trading:generate_report' %}" class="row g-3 align-items-center">
+                        {% csrf_token %}
+                        <div class="col-md-6">
+                            <label for="portfolioSelect" class="form-label">Select Portfolio:</label>
+                            <select class="form-select" id="portfolioSelect" name="portfolio_id" required>
+                                <option value="">-- Select a Portfolio --</option>
+                                {% for portfolio in portfolios %}
+                                <option value="{{ portfolio.id }}" {% if selected_portfolio and portfolio.id == selected_portfolio.id %}selected{% endif %}>
+                                    {{ portfolio.name }} - ₹{{ portfolio.total_value|floatformat:2|intcomma }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-plus-circle"></i> Generate Report for Selected Portfolio
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Portfolio Filter (if viewing all reports) -->
+    {% if portfolios|length > 1 %}
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" action="{% url 'trading:reports' %}" class="row g-3 align-items-center">
+                        <div class="col-md-5">
+                            <label for="filterPortfolio" class="form-label">Filter by Portfolio:</label>
+                            <select class="form-select" id="filterPortfolio" name="portfolio_id" onchange="this.form.submit()">
+                                <option value="">-- All Portfolios --</option>
+                                {% for portfolio in portfolios %}
+                                <option value="{{ portfolio.id }}" {% if request.GET.portfolio_id == portfolio.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ portfolio.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-7 d-flex align-items-end">
+                            {% if request.GET.portfolio_id %}
+                            <a href="{% url 'trading:reports' %}" class="btn btn-outline-secondary">
+                                Clear Filter
+                            </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Reports List -->
     <div class="row">
         <div class="col-md-12">
             <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>
+                        {% if selected_portfolio %}
+                        Reports for {{ selected_portfolio.name }}
+                        {% else %}
+                        All Portfolio Reports
+                        {% endif %}
+                    </h5>
+                    <span class="badge bg-primary">{{ reports|length }} report{{ reports|pluralize }}</span>
+                </div>
                 <div class="card-body">
                     {% if reports %}
                     <div class="table-responsive">
@@ -27,17 +96,22 @@
                             <thead>
                                 <tr>
                                     <th>Report Date</th>
+                                    {% if not selected_portfolio %}<th>Portfolio</th>{% endif %}
                                     <th>Total Value</th>
                                     <th>Cash Balance</th>
                                     <th>Invested Value</th>
                                     <th>P/L</th>
                                     <th>Actions</th>
+                                    <th>Delete</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for report in reports %}
                                 <tr>
                                     <td>{{ report.report_date|date:"M d, Y" }}</td>
+                                    {% if not selected_portfolio %}
+                                    <td>{{ report.portfolio.name|default:"Unnamed Portfolio" }}</td>
+                                    {% endif %}
                                     <td>₹{{ report.total_value|floatformat:2|intcomma }}</td>
                                     <td>₹{{ report.cash_balance|floatformat:2|intcomma }}</td>
                                     <td>₹{{ report.investment_value|floatformat:2|intcomma }}</td>
@@ -46,14 +120,22 @@
                                         ({{ report.profit_loss_percentage|floatformat:2 }}%)
                                     </td>
                                     <td>
-                                        <a href="{% url 'trading:report_detail' report.id %}"
-                                           class="btn btn-sm btn-outline-primary">
+                                        <a href="{% url 'trading:report_detail' portfolio_id=report.portfolio.id pk=report.id %}"
+                                           class="btn btn-sm btn-outline-primary mb-1">
                                             View Details
                                         </a>
-                                        <a href="{% url 'trading:report_detail' report.id %}?export=pdf"
-                                           class="btn btn-sm btn-outline-secondary">
-                                            <i class="bi bi-file-earmark-pdf"></i> Export PDF
+                                        <a href="{% url 'trading:report_detail' portfolio_id=report.portfolio.id pk=report.id %}?export=pdf"
+                                           class="btn btn-sm btn-outline-secondary mb-1">
+                                            <i class="bi bi-file-earmark-pdf"></i> PDF
                                         </a>
+                                    </td>
+                                    <td>
+                                        <form method="post" action="{% url 'trading:delete_report' report.id %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this report?');">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -63,7 +145,11 @@
                     {% else %}
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle"></i>
+                        {% if selected_portfolio %}
+                        No reports available for {{ selected_portfolio.name }}. Generate your first report to track this portfolio's performance.
+                        {% else %}
                         No reports available. Generate your first report to track your portfolio performance.
+                        {% endif %}
                     </div>
                     {% endif %}
                 </div>

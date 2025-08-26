@@ -1,0 +1,140 @@
+{% extends "stocks/base.html" %}
+{% block title %}{{ stock.symbol }} - Details{% endblock %}
+{% block content %}
+<div class="row gx-4 gy-4">
+  <div class="col-12">
+    <div class="card shadow-sm">
+      <div class="card-body d-flex flex-column flex-md-row justify-content-between align-items-start gap-3">
+        <div>
+          <h3 class="mb-1">{{ stock.name|default:stock.symbol }}</h3>
+          <div class="small-muted">Symbol: <strong>{{ stock.symbol }}</strong></div>
+          <div class="mt-2">
+            <span class="price">{% if stock.current_price %}₹{{ stock.current_price }}{% else %}—{% endif %}</span>
+            <span class="small-muted ms-2">as of {{ stock.updated_at|date:"d M Y H:i" }}</span>
+          </div>
+        </div>
+
+        <div class="text-end">
+          <form method="post" action="{% url 'stocks:modify_watchlist' %}" id="watchlist-form">
+            {% csrf_token %}
+            <input type="hidden" name="symbol" value="{{ stock.symbol }}">
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button id="watchlist-btn" class="btn btn-outline-{{ 'danger' if in_watchlist else 'success' }} btn-wide" name="action" value="{{ 'remove' if in_watchlist else 'add' }}" type="submit">
+              {{ "Remove" if in_watchlist else "Add" }}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-md-6">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="card-head">Place Order</div>
+        <div class="small-muted mb-3">Execute market buy/sell at current price.</div>
+
+        <form method="post" action="{% url 'stocks:place_trade' %}">
+          {% csrf_token %}
+          <input type="hidden" name="symbol" value="{{ stock.symbol }}">
+          <div class="mb-2">
+            <label class="form-label">Quantity</label>
+            <input type="number" name="quantity" class="form-control" min="1" required>
+          </div>
+
+          <div class="d-flex gap-2 mt-3">
+            <button class="btn btn-success flex-fill" name="action" value="buy" type="submit">Buy</button>
+            <button class="btn btn-danger flex-fill" name="action" value="sell" type="submit">Sell</button>
+          </div>
+          <div class="small-muted mt-2">Execution price is market LTP fetched automatically.</div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-md-6">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="card-head mb-2">Stock Info</div>
+        <dl class="row">
+          <dt class="col-5 small-muted">Symbol</dt>
+          <dd class="col-7">{{ stock.symbol }}</dd>
+
+          <dt class="col-5 small-muted">Name</dt>
+          <dd class="col-7">{{ stock.name|default:"—" }}</dd>
+
+          <dt class="col-5 small-muted">Price</dt>
+          <dd class="col-7">{% if stock.current_price %}₹{{ stock.current_price }}{% else %}—{% endif %}</dd>
+
+          <dt class="col-5 small-muted">Last updated</dt>
+          <dd class="col-7 small-muted">{{ stock.updated_at|date:"d M Y H:i" }}</dd>
+        </dl>
+
+        <div class="mt-3">
+          <a class="btn btn-outline-secondary btn-sm" href="{% url 'stocks:portfolio' %}">View Portfolio</a>
+          <a class="btn btn-outline-primary btn-sm" href="{% url 'stocks:watchlist' %}">Back to Watchlist</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const watchForm = document.getElementById('watchlist-form');
+  const watchBtn = document.getElementById('watchlist-btn');
+  if (watchForm) {
+    watchForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      watchBtn.disabled = true;
+      try {
+        const data = await postFormAjax(watchForm);
+        if (data && data.success) {
+          const nowIn = data.in_watchlist;
+          watchBtn.textContent = nowIn ? 'Remove' : 'Add';
+          watchBtn.classList.toggle('btn-outline-success', nowIn === false);
+          watchBtn.classList.toggle('btn-outline-danger', nowIn === true);
+          watchBtn.value = nowIn ? 'remove' : 'add';
+          showToast(`${data.symbol} ${data.action}ed to watchlist`, 'success');
+        } else {
+          showToast((data && data.error) || 'Action failed', 'danger');
+        }
+      } catch (err) {
+        console.error(err);
+        showToast(err && err.error ? err.error : 'Request failed', 'danger');
+      } finally {
+        watchBtn.disabled = false;
+      }
+    });
+  }
+
+  const tradeForm = document.querySelector('form[action="{% url "stocks:place_trade" %}"]');
+  if (tradeForm) {
+    tradeForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const btnBuy = tradeForm.querySelector('button[name="action"][value="buy"]');
+      const btnSell = tradeForm.querySelector('button[name="action"][value="sell"]');
+      if (btnBuy) btnBuy.disabled = true;
+      if (btnSell) btnSell.disabled = true;
+      try {
+        const data = await postFormAjax(tradeForm);
+        if (data && data.success) {
+          showToast(`${data.trade.type} ${data.trade.quantity} × ${data.trade.symbol} executed @ ₹${data.trade.price}`, 'success');
+          if (data.account && data.account.virtual_balance) {
+            document.querySelectorAll('.account-balance').forEach(el => el.textContent = `Balance: ₹${data.account.virtual_balance}`);
+          }
+        } else {
+          showToast((data && data.error) || 'Trade failed', 'danger');
+        }
+      } catch (err) {
+        console.error(err);
+        showToast(err && err.error ? err.error : 'Trade request failed', 'danger');
+      } finally {
+        if (btnBuy) btnBuy.disabled = false;
+        if (btnSell) btnSell.disabled = false;
+      }
+    });
+  }
+});
+</script>
+{% endblock %}

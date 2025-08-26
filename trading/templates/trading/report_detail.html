@@ -170,6 +170,7 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch(`/trading/api/stock-transactions/${stockId}/?report_id={{ report.id }}`)
                 .then(response => response.json())
                 .then(data => {
+                console.log(data);
                     if (data.success) {
                         const modalTitle = document.getElementById('notesModalTitle');
                         modalTitle.textContent = `Transaction Notes - ${stockSymbol}`;

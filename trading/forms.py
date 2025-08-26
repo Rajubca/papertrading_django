@@ -159,3 +159,29 @@ class SignUpForm(UserCreationForm):
     class Meta:
         model = User
         fields = ('username', 'email', 'phone', 'birth_date', 'password1', 'password2')
+
+
+# ... (other forms)
+
+from django import forms
+from .models import Portfolio
+from django.contrib.auth.models import User
+
+
+# ... other imports
+
+class PortfolioReportForm(forms.Form):
+    """
+    Form to select one or more portfolios for report generation.
+    """
+    portfolios = forms.ModelMultipleChoiceField(
+        queryset=None,  # Will be set in the view
+        widget=forms.CheckboxSelectMultiple,
+        label="Select Portfolios"
+    )
+
+    def __init__(self, user, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['portfolios'].queryset = Portfolio.objects.filter(user=user)
+
+
