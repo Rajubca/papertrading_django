@@ -1,0 +1,406 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title mb-0">
+                        <i class="bi bi-arrow-left-right"></i>
+                        {% if selected_stock %}
+                            Trade {{ selected_stock.symbol }} - {{ selected_stock.name }}
+                        {% else %}
+                            Trade Stocks
+                        {% endif %}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if stocks_count == 0 %}
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            No stocks available in the system.
+                            <a href="{% url 'admin:trading_stock_add' %}" class="alert-link">Add stocks</a>
+                        </div>
+                    {% else %}
+                        <form method="post">
+                            {% csrf_token %}
+
+                            {% if form.non_field_errors %}
+                                <div class="alert alert-danger">
+                                    {% for error in form.non_field_errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+
+                            <!-- Portfolio Selection -->
+                            {% if portfolios.count > 1 %}
+                            <div class="mb-3">
+                                <label class="form-label">Portfolio *</label>
+                                {{ form.portfolio }}
+                                {% if form.portfolio.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.portfolio.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            {% else %}
+                                <input type="hidden" name="portfolio" value="{{ portfolios.first.id }}">
+                            {% endif %}
+
+                            <div class="row">
+                                <!-- Left Column -->
+                                <div class="col-md-6">
+                                    <!-- Stock Selection -->
+                                    <div class="mb-3">
+                                        <label class="form-label">Stock *</label>
+                                        {{ form.stock }}
+                                        {% if form.stock.errors %}
+                                            <div class="text-danger">
+                                                {% for error in form.stock.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Transaction Type -->
+                                    <div class="mb-3">
+                                        <label class="form-label">Transaction Type *</label>
+                                        {{ form.transaction_type }}
+                                        {% if form.transaction_type.errors %}
+                                            <div class="text-danger">
+                                                {% for error in form.transaction_type.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Quantity -->
+                                    <div class="mb-3">
+                                        <label class="form-label">Quantity *</label>
+                                        {{ form.quantity }}
+                                        {% if form.quantity.errors %}
+                                            <div class="text-danger">
+                                                {% for error in form.quantity.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                        <div class="form-text" id="max-shares-info" style="display: none;">
+                                            You own: <span id="owned-shares">0</span> shares
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Right Column -->
+                                <div class="col-md-6">
+                                    <!-- Price per Share -->
+                                    <div class="mb-3">
+                                        <label class="form-label">Price per Share (₹) *</label>
+                                        {{ form.price_per_share }}
+                                        {% if form.price_per_share.errors %}
+                                            <div class="text-danger">
+                                                {% for error in form.price_per_share.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                        <div class="form-text">
+                                            Current market price:
+                                            <span id="current-price">
+                                                {% if selected_stock %}
+                                                    ₹{{ selected_stock.current_price|floatformat:2 }}
+                                                {% else %}
+                                                    Select a stock
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Notes -->
+                                    <div class="mb-3">
+                                        <label class="form-label">Notes</label>
+                                        {{ form.notes }}
+                                    </div>
+
+                                    <!-- Summary -->
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <h6 class="card-title">Order Summary</h6>
+                                            <div class="d-flex justify-content-between mb-1">
+                                                <span>Quantity:</span>
+                                                <span id="summary-quantity">0</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between mb-1">
+                                                <span>Price per Share:</span>
+                                                <span>₹<span id="summary-price">0.00</span></span>
+                                            </div>
+                                            <hr>
+                                            <div class="d-flex justify-content-between fw-bold">
+                                                <span>Total Amount:</span>
+                                                <span id="summary-total">₹0.00</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between mt-1">
+                                                <span>Cash After Trade:</span>
+                                                <span id="summary-cash-after">₹{{ portfolio.cash_balance|floatformat:2 }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-2 mt-4">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-check-circle"></i> Execute Trade
+                                </button>
+                                <a href="{% url 'trading:stock_list' %}" class="btn btn-secondary">
+                                    <i class="bi bi-x-circle"></i> Cancel
+                                </a>
+                            </div>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Portfolio Summary -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-wallet2"></i> Portfolio Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Cash Balance:</strong>
+                        <span class="float-end">₹{{ portfolio.cash_balance|floatformat:2|intcomma }}</span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Total Value:</strong>
+                        <span class="float-end">₹{{ portfolio.total_value|floatformat:2|intcomma }}</span>
+                    </div>
+                    <hr>
+                    <h6>Your Holdings:</h6>
+                    {% if portfolio.holdings.all %}
+                        <div class="small" id="holdings-list">
+                            {% for holding in portfolio.holdings.all %}
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>{{ holding.stock.symbol }}</span>
+                                    <span>{{ holding.quantity }} shares</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No holdings yet</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const stockSelect = document.querySelector('#id_stock');
+    const quantityInput = document.querySelector('#id_quantity');
+    const priceInput = document.querySelector('#id_price_per_share');
+    const transactionTypeSelect = document.querySelector('#id_transaction_type');
+    const portfolioSelect = document.querySelector('#id_portfolio');
+
+    const summaryQuantity = document.querySelector('#summary-quantity');
+    const summaryPrice = document.querySelector('#summary-price');
+    const summaryTotal = document.querySelector('#summary-total');
+    const summaryCashAfter = document.querySelector('#summary-cash-after');
+    const currentPriceSpan = document.querySelector('#current-price');
+
+    // Function to get current price from selected stock
+    function getCurrentPriceFromSelect() {
+        if (stockSelect && stockSelect.options[stockSelect.selectedIndex]) {
+            const option = stockSelect.options[stockSelect.selectedIndex];
+            // You might need to store the price in a data attribute
+            const priceText = option.text.match(/₹([\d.]+)/);
+            if (priceText && priceText[1]) {
+                return parseFloat(priceText[1]);
+            }
+        }
+        return 0;
+    }
+
+    function updateOrderSummary() {
+        const stockId = stockSelect ? stockSelect.value : null;
+        const quantity = parseInt(quantityInput.value) || 0;
+        const price = parseFloat(priceInput.value) || 0;
+        const transactionType = transactionTypeSelect ? transactionTypeSelect.value : 'BUY';
+        const portfolioId = portfolioSelect ? portfolioSelect.value : '{{ portfolios.first.id }}';
+
+        // If no stock is selected, use the first one for calculation
+        const effectiveStockId = stockId || (stockSelect && stockSelect.options.length > 0 ? stockSelect.options[0].value : null);
+
+        if (!effectiveStockId || quantity <= 0 || price <= 0) {
+            // Reset summary if values are invalid
+            summaryQuantity.textContent = '0';
+            summaryPrice.textContent = '0.00';
+            summaryTotal.textContent = '₹0.00';
+            summaryCashAfter.textContent = '₹{{ portfolio.cash_balance|floatformat:2 }}';
+
+            // Set current price from select if available
+            const currentPrice = getCurrentPriceFromSelect();
+            if (currentPrice > 0) {
+                currentPriceSpan.textContent = "₹" + currentPrice.toFixed(2);
+            }
+            return;
+        }
+
+        // Get CSRF token from cookie
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        // Create JSON data
+        const data = {
+            stock_id: effectiveStockId,
+            quantity: quantity,
+            price: price,
+            transaction_type: transactionType,
+            portfolio_id: portfolioId
+        };
+
+        fetch("{% url 'trading:calculate_order' %}", {
+            method: "POST",
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok: ' + response.status);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                summaryQuantity.textContent = data.quantity;
+                summaryPrice.textContent = data.price.toFixed(2);
+                summaryTotal.textContent = "₹" + data.total.toFixed(2);
+                summaryCashAfter.textContent = "₹" + data.cash_after.toFixed(2);
+                currentPriceSpan.textContent = "₹" + data.current_price.toFixed(2);
+
+                // Show/hide max shares info for sell transactions
+                const maxSharesInfo = document.getElementById('max-shares-info');
+                const ownedShares = document.getElementById('owned-shares');
+                if (transactionType === 'SELL' && data.owned_shares !== undefined) {
+                    maxSharesInfo.style.display = 'block';
+                    ownedShares.textContent = data.owned_shares;
+                } else {
+                    maxSharesInfo.style.display = 'none';
+                }
+            } else {
+                console.error('Error from server:', data.error);
+                // Fallback to local calculation
+                calculateLocally(effectiveStockId, quantity, price, transactionType, portfolioId);
+            }
+        })
+        .catch(err => {
+            console.error("Fetch error:", err);
+            // Fallback to local calculation
+            calculateLocally(effectiveStockId, quantity, price, transactionType, portfolioId);
+        });
+    }
+
+    function calculateLocally(stockId, quantity, price, transactionType, portfolioId) {
+        // Simple local calculation as fallback
+        const total = quantity * price;
+        const cashBalance = parseFloat('{{ portfolio.cash_balance }}') || 0;
+        let cashAfter = cashBalance;
+
+        if (transactionType === 'BUY') {
+            cashAfter = cashBalance - total;
+        } else {
+            cashAfter = cashBalance + total;
+        }
+
+        summaryQuantity.textContent = quantity;
+        summaryPrice.textContent = price.toFixed(2);
+        summaryTotal.textContent = "₹" + total.toFixed(2);
+        summaryCashAfter.textContent = "₹" + cashAfter.toFixed(2);
+
+        // Get current price from selected stock
+        const currentPrice = getCurrentPriceFromSelect();
+        if (currentPrice > 0) {
+            currentPriceSpan.textContent = "₹" + currentPrice.toFixed(2);
+        } else {
+            currentPriceSpan.textContent = "₹" + price.toFixed(2) + " (manual)";
+        }
+    }
+
+    // Initialize the form on page load
+    function initializeForm() {
+        // If no stock is selected, select the first one
+        if (stockSelect && stockSelect.options.length > 0 && !stockSelect.value) {
+            stockSelect.value = stockSelect.options[0].value;
+        }
+
+        // Set default quantity to 1 if empty
+        if (quantityInput && !quantityInput.value) {
+            quantityInput.value = 1;
+        }
+
+        // Set default price to current price if empty
+        if (priceInput && !priceInput.value) {
+            const currentPrice = getCurrentPriceFromSelect();
+            if (currentPrice > 0) {
+                priceInput.value = currentPrice.toFixed(2);
+            }
+        }
+
+        // Trigger initial update
+        updateOrderSummary();
+    }
+
+    // Event listeners for all input fields
+    const inputsToWatch = [stockSelect, quantityInput, priceInput, transactionTypeSelect];
+    if (portfolioSelect) {
+        inputsToWatch.push(portfolioSelect);
+    }
+
+    inputsToWatch.forEach(input => {
+        if (input) {
+            input.addEventListener('change', updateOrderSummary);
+            input.addEventListener('input', updateOrderSummary);
+        }
+    });
+
+    // Initialize the form
+    initializeForm();
+
+    // Also update when stock is pre-selected via URL
+    {% if selected_stock %}
+    setTimeout(updateOrderSummary, 500);
+    {% endif %}
+});
+</script>
+{% endblock %}

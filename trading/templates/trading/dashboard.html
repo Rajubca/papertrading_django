@@ -1,0 +1,533 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>📈 Dashboard</h2>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'trading:stock_list' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Start Trading
+            </a>
+            <a href="{% url 'trading:portfolio_list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-gear"></i> Manage Portfolios
+            </a>
+        </div>
+    </div>
+
+    <!-- Portfolio Selection & Summary -->
+    {% if portfolios %}
+        <!-- Portfolio Selector -->
+        <div class="row mb-3">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body py-2">
+                        <div class="d-flex align-items-center">
+                            <label for="portfolioSelect" class="form-label mb-0 me-2">Active Portfolio:</label>
+                            <select class="form-select form-select-sm" style="width: auto;" id="portfolioSelect">
+                                {% for p in portfolios %}
+                                <option value="{{ p.id }}" {% if p.id == portfolio.id %}selected{% endif %}>
+                                    {{ p.name }} (₹{{ p.total_value|floatformat:2|intcomma }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <span class="ms-3 text-muted small">
+                                {{ portfolios.count }} portfolio{{ portfolios.count|pluralize }} available
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Portfolio Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4 class="card-title mb-0">
+                            {{ portfolio.name }}
+                            <span class="badge bg-secondary ms-2">{{ portfolio.holdings.count }} holdings</span>
+                        </h4>
+                        <small class="text-muted">Last updated: {{ portfolio.last_updated|date:"H:i, F j" }}</small>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-md-3">
+                                <div class="card bg-primary text-white mb-0">
+                                    <div class="card-body py-3">
+                                        <h6 class="card-title">Total Value</h6>
+                                        <h3 class="card-text">₹{{ total_value|floatformat:2|intcomma }}</h3>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-success text-white mb-0">
+                                    <div class="card-body py-3">
+                                        <h6 class="card-title">Cash Balance</h6>
+                                        <h3 class="card-text">₹{{ portfolio.cash_balance|floatformat:2|intcomma }}</h3>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-info text-white mb-0">
+                                    <div class="card-body py-3">
+                                        <h6 class="card-title">Invested Value</h6>
+                                        <h3 class="card-text">₹{{ portfolio.invested_value|floatformat:2|intcomma }}</h3>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card {% if unrealized_pl >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white mb-0">
+                                    <div class="card-body py-3">
+                                    <h6 class="card-title">Unrealized P/L</h6>
+                                    <h3 class="card-text">
+                                        ₹{{ unrealized_pl|floatformat:2|intcomma }}
+                                        <small>({{ unrealized_pl_pct|floatformat:2 }}%)</small>
+                                    </h3>
+                                    <div class="small text-white-50">
+                                        Since inception: ₹{{ since_inception_pl|floatformat:2|intcomma }}
+                                        ({{ since_inception_pl_pct|floatformat:2 }}%)
+                                    </div>
+                                    </div>
+                                </div>
+                                </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {# --- All Portfolios (Combined) --- #}
+<div class="row mb-4">
+  <div class="col-md-12">
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="card-title mb-0">All Portfolios — Combined</h4>
+        <small class="text-muted">
+          {{ all_portfolios_summary.count }} portfolio{{ all_portfolios_summary.count|pluralize }}
+        </small>
+      </div>
+      <div class="card-body">
+        <div class="row text-center">
+          <div class="col-md-3">
+            <div class="card bg-primary text-white mb-0">
+              <div class="card-body py-3">
+                <h6 class="card-title">Total Value</h6>
+                <h3 class="card-text">
+                  ₹{{ all_portfolios_summary.total_value|floatformat:2|intcomma }}
+                </h3>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card bg-success text-white mb-0">
+              <div class="card-body py-3">
+                <h6 class="card-title">Cash (All)</h6>
+                <h3 class="card-text">
+                  ₹{{ all_portfolios_summary.total_cash|floatformat:2|intcomma }}
+                </h3>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card bg-info text-white mb-0">
+              <div class="card-body py-3">
+                <h6 class="card-title">Invested (All)</h6>
+                <h3 class="card-text">
+                  ₹{{ all_portfolios_summary.total_invested_current|floatformat:2|intcomma }}
+                </h3>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card {% if all_portfolios_summary.unrealized_pl >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white mb-0">
+              <div class="card-body py-3">
+                <h6 class="card-title">Unrealized P/L (All)</h6>
+                <h3 class="card-text">
+                  ₹{{ all_portfolios_summary.unrealized_pl|floatformat:2|intcomma }}
+                  <small>({{ all_portfolios_summary.unrealized_pl_pct|floatformat:2 }}%)</small>
+                </h3>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {# Per-portfolio breakdown #}
+        <div class="table-responsive mt-3">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Portfolio</th>
+                <th class="text-end">Cash</th>
+                <th class="text-end">Invested</th>
+                <th class="text-end">Total</th>
+                <th class="text-end">Unrealized P/L</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in all_portfolios_rows %}
+              <tr>
+                <td>
+                  <a href="?portfolio={{ r.id }}">{{ r.name }}</a>
+                </td>
+                <td class="text-end">₹{{ r.cash|floatformat:2|intcomma }}</td>
+                <td class="text-end">₹{{ r.invested_current|floatformat:2|intcomma }}</td>
+                <td class="text-end fw-bold">₹{{ r.total_value|floatformat:2|intcomma }}</td>
+                <td class="text-end {% if r.unrealized_pl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                  ₹{{ r.unrealized_pl|floatformat:2|intcomma }}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+    <!-- Charts & Recent Transactions -->
+    <div class="row mb-4">
+        <!-- Performance Chart -->
+        <div class="col-md-8">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Portfolio Performance (30 Days)</h5>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-secondary active" data-period="7">1W</button>
+                        <button type="button" class="btn btn-outline-secondary" data-period="30">1M</button>
+                        <button type="button" class="btn btn-outline-secondary" data-period="90">3M</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if performance_data != '[]' %}
+                    <div id="performanceChart" style="height: 300px;"></div>
+                    {% else %}
+                    <div class="d-flex justify-content-center align-items-center" style="height: 300px;">
+                        <div class="text-center text-muted">
+                            <i class="bi bi-bar-chart" style="font-size: 3rem;"></i>
+                            <p class="mt-2">No performance data available yet</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Recent Transactions</h5>
+                    <a href="{% url 'trading:transaction_list' %}?portfolio={{ portfolio.id }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    {% if transactions %}
+                    <div class="list-group list-group-flush">
+                        {% for transaction in transactions %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong>{{ transaction.stock.symbol }}</strong>
+                                <span class="badge bg-{% if transaction.transaction_type == 'BUY' %}success{% else %}danger{% endif %}">
+                                    {{ transaction.get_transaction_type_display }}
+                                </span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="small">
+                                    {{ transaction.quantity }} shares @ ₹{{ transaction.price_per_share|floatformat:2 }}
+                                </span>
+                                <span class="small text-muted">
+                                    {{ transaction.timestamp|timesince }} ago
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-arrow-left-right" style="font-size: 2rem;"></i>
+                        <p class="mt-2">No transactions yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Holdings Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Your Holdings</h5>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary me-1" id="refreshHoldings">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                        <a href="{% url 'trading:stock_list' %}" class="btn btn-sm btn-primary">
+                            <i class="bi bi-plus-circle"></i> Add Holding
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Name</th>
+                                    <th class="text-end">Quantity</th>
+                                    <th class="text-end">Avg. Buy Price</th>
+                                    <th class="text-end">Current Price</th>
+                                    <th class="text-end">Current Value</th>
+                                    <th class="text-end">P/L</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for holding in holdings %}
+                                <tr>
+                                    <td class="fw-bold">{{ holding.stock.symbol }}</td>
+                                    <td>{{ holding.stock.name }}</td>
+                                    <td class="text-end">{{ holding.quantity }}</td>
+                                    <td class="text-end">₹{{ holding.average_buy_price|floatformat:2 }}</td>
+                                    <td class="text-end">₹{{ holding.stock.current_price|floatformat:2 }}</td>
+                                    <td class="text-end fw-bold">₹{{ holding.current_value|floatformat:2 }}</td>
+                                    <td class="text-end {% if holding.profit_loss >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        ₹{{ holding.profit_loss|floatformat:2 }}<br>
+                                        <small>({{ holding.profit_loss_percentage|floatformat:2 }}%)</small>
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{% url 'trading:trade_stock' holding.stock.id %}"
+                                           class="btn btn-sm btn-outline-primary">
+                                            Trade
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                                            <p class="mt-2 mb-1">No holdings yet</p>
+                                            <p class="small">Start by adding your first investment</p>
+                                            <a href="{% url 'trading:stock_list' %}" class="btn btn-primary btn-sm mt-2">
+                                                Start Trading
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            {% if holdings %}
+                            <tfoot class="table-secondary">
+                                <tr>
+                                    <th colspan="5" class="text-end">Total:</th>
+                                    <th class="text-end fw-bold">₹{{ portfolio.invested_value|floatformat:2|intcomma }}</th>
+                                    <th class="text-end {% if unrealized_pl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ₹{{ unrealized_pl|floatformat:2|intcomma }}
+                                    <small>({{ unrealized_pl_pct|floatformat:2 }}%)</small>
+                                    </th>
+                                    <th></th>
+                                </tr>
+                                </tfoot>
+
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+        <!-- No Portfolios Message -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="alert alert-warning" role="alert">
+                    <h4 class="alert-heading">No portfolios found!</h4>
+                    <p>You don't have any portfolios yet. Create your first portfolio to start tracking your investments.</p>
+                    <hr>
+                    <a href="{% url 'trading:create_portfolio' %}" class="btn btn-warning">Create Portfolio</a>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+<script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+<script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Portfolio selector functionality
+    const portfolioSelect = document.getElementById('portfolioSelect');
+    if (portfolioSelect) {
+        portfolioSelect.addEventListener('change', function() {
+            // Redirect to dashboard with selected portfolio
+            const portfolioId = this.value;
+            const url = new URL(window.location.href);
+            url.searchParams.set('portfolio', portfolioId);
+            window.location.href = url.toString();
+        });
+    }
+
+    // Period selector for performance chart
+    document.querySelectorAll('[data-period]').forEach(button => {
+        button.addEventListener('click', function() {
+            // Remove active class from all buttons
+            document.querySelectorAll('[data-period]').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            // Add active class to clicked button
+            this.classList.add('active');
+
+            const period = this.dataset.period;
+            // Here you would typically fetch data for the selected period
+            console.log('Selected period:', period, 'days');
+        });
+    });
+
+    // Refresh holdings button
+    document.getElementById('refreshHoldings')?.addEventListener('click', function() {
+        const btn = this;
+        const originalHtml = btn.innerHTML;
+
+        // Show loading state
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Refreshing...';
+        btn.disabled = true;
+
+        // Simulate refresh (replace with actual API call)
+        setTimeout(function() {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+            // Show success message (you could use a toast notification)
+            alert('Holdings data refreshed!');
+            location.reload(); // Reload the page to get updated data
+        }, 1500);
+    });
+
+    // Initialize performance chart if data exists
+    {% if performance_data != '[]' %}
+    am5.ready(function() {
+        var root = am5.Root.new("performanceChart");
+        root.setThemes([am5themes_Animated.new(root)]);
+
+        var chart = root.container.children.push(am5xy.XYChart.new(root, {
+            panX: true,
+            panY: true,
+            wheelX: "panX",
+            wheelY: "zoomX"
+        }));
+
+        var xAxis = chart.xAxes.push(am5xy.DateAxis.new(root, {
+            baseInterval: { timeUnit: "day", count: 1 },
+            renderer: am5xy.AxisRendererX.new(root, {})
+        }));
+
+        var yAxis = chart.yAxes.push(am5xy.ValueAxis.new(root, {
+            renderer: am5xy.AxisRendererY.new(root, {}),
+            numberFormat: "'₹'#.##a"
+        }));
+
+        var series = chart.series.push(am5xy.LineSeries.new(root, {
+            name: "Portfolio Value",
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: "value",
+            valueXField: "date",
+            tooltip: am5.Tooltip.new(root, {
+                labelText: "₹{valueY}"
+            })
+        }));
+
+        series.strokes.template.setAll({
+            strokeWidth: 2
+        });
+
+        // Add bullet for the last data point
+        series.bullets.push(function() {
+            return am5.Bullet.new(root, {
+                sprite: am5.Circle.new(root, {
+                    radius: 4,
+                    fill: series.get("fill")
+                })
+            });
+        });
+
+        series.data.setAll({{ performance_data|safe }});
+        chart.set("cursor", am5xy.XYCursor.new(root, {}));
+
+        // Add scrollbar
+        chart.set("scrollbarX", am5.Scrollbar.new(root, {
+            orientation: "horizontal"
+        }));
+    });
+    {% endif %}
+});
+</script>
+
+<div id="signal-toasts" style="position:fixed;right:16px;top:16px;z-index:9999"></div>
+<ul id="signal-feed" style="list-style:none;padding:0;margin:16px 0"></ul>
+
+<script>
+(function () {
+  const feed = document.getElementById("signal-feed");
+  const toasts = document.getElementById("signal-toasts");
+
+  // Build WS URL to your Django Channels endpoint
+  const WS_URL = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/signals/";
+
+  let ws, retries = 0;
+  function connect() {
+    ws = new WebSocket(WS_URL);
+    ws.onopen = () => { retries = 0; console.log("WS connected:", WS_URL); };
+    ws.onmessage = (e) => {
+      const s = JSON.parse(e.data); // payload from your serializer
+      showToast(s.message);
+      prependFeed(s);
+      // Optional: group by s.symbol if you keep per-symbol sections
+    };
+    ws.onclose = () => {
+      const timeout = Math.min(10000, 500 * Math.pow(2, retries++));
+      setTimeout(connect, timeout);
+    };
+  }
+
+  function prependFeed(s) {
+    const li = document.createElement("li");
+    li.textContent = s.message;
+    li.style.padding = "8px 12px";
+    li.style.border = "1px solid #ddd";
+    li.style.borderRadius = "8px";
+    li.style.marginBottom = "8px";
+    feed.prepend(li);
+  }
+
+  function showToast(text) {
+    // Try system notification
+    if ("Notification" in window) {
+      if (Notification.permission === "granted") new Notification(text);
+      else if (Notification.permission !== "denied") {
+        Notification.requestPermission().then(p => { if (p === "granted") new Notification(text); });
+      }
+    }
+    // In-app toast (always)
+    const box = document.createElement("div");
+    box.textContent = text;
+    box.style.cssText = "background:#111;color:#fff;margin:8px 0;padding:10px 12px;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.25);max-width:360px";
+    toasts.prepend(box);
+    setTimeout(()=>box.remove(), 5000);
+  }
+
+  connect();
+})();
+</script>
+
+{% endblock %}

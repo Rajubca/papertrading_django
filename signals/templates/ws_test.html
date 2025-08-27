@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Signals WS Test</title>
+<body>
+  <h1>Live Trade Signals</h1>
+  <ul id="feed"></ul>
+
+  <script>
+    const list = document.getElementById("feed");
+    const wsUrl = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/signals/";
+    const ws = new WebSocket(wsUrl);
+
+    function toast(text) {
+      // Browser notification (ask once)
+      if ("Notification" in window) {
+        if (Notification.permission === "granted") new Notification(text);
+        else if (Notification.permission !== "denied") {
+          Notification.requestPermission().then(p => { if (p === "granted") new Notification(text); });
+        }
+      }
+      // In-page fallback
+      const li = document.createElement("li");
+      li.textContent = text;
+      list.prepend(li);
+    }
+
+    ws.onopen = () => console.log("WS connected:", wsUrl);
+    ws.onmessage = (e) => {
+      const data = JSON.parse(e.data);
+      // data.message is your exact one-line format
+      toast(data.message);
+      console.log("Signal:", data);
+    };
+    ws.onclose = () => console.log("WS closed");
+  </script>
+</body>

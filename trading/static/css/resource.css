@@ -1,0 +1,33 @@
+.stat-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    height: 100%;
+}
+
+.stat-card h5 {
+    color: #6c757d;
+    font-size: 1rem;
+    margin-bottom: 10px;
+}
+
+.stat-card h3 {
+    color: #212529;
+    font-weight: 600;
+}
+
+#performanceChart {
+    width: 100%;
+    min-height: 300px;
+}
+
+.holdings-table th {
+    white-space: nowrap;
+}
+
+.list-group-item {
+    padding: 12px 15px;
+    margin-bottom: 8px;
+    border-radius: 6px !important;
+}

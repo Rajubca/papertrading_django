@@ -1,0 +1,17 @@
+
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card p-4 text-center">
+        <h2 class="card-title text-danger">Confirm Deletion</h2>
+        <p class="lead">Are you sure you want to delete the portfolio: <strong>{{ portfolio.name }}</strong>?</p>
+        <p>This action cannot be undone.</p>
+        <form method="post" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger me-2">Delete</button>
+            <a href="{% url 'trading:portfolio_list' %}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}
