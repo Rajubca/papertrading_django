@@ -1,0 +1,13 @@
+Django>=4.2,<5.0
+pandas
+reportlab
+daphne
+requests
+django-htmx
+django-bootstrap5
+openpyxl
+gunicorn
+psycopg2-binary
+dj-database-url
+whitenoise
+python-decouple
