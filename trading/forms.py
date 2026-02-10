@@ -84,15 +84,6 @@ class TradeForm(forms.ModelForm):
                 raise forms.ValidationError(
                     f"Insufficient funds. You need ₹{total_cost:.2f} but only have ₹{portfolio.cash_balance:.2f}."
                 )
-        elif transaction_type == 'SELL':
-            try:
-                holding = Holding.objects.get(portfolio=portfolio, stock=stock)
-                if quantity > holding.quantity:
-                    raise forms.ValidationError(
-                        f"You only own {holding.quantity} shares of {stock.symbol}."
-                    )
-            except Holding.DoesNotExist:
-                raise forms.ValidationError(f"You don't own any shares of {stock.symbol}.")
 
         return cleaned_data
 
