@@ -1,8 +1,35 @@
 Watching for file changes with StatReloader
-[18/Feb/2026 10:35:33] "GET /accounts/login/ HTTP/1.1" 200 10588
-[18/Feb/2026 10:35:33] "GET /static/css/theme.css HTTP/1.1" 200 3665
-[18/Feb/2026 10:35:33] "GET /static/css/styles.css HTTP/1.1" 200 487
-[18/Feb/2026 10:35:33] "GET /static/js/main.js HTTP/1.1" 200 0
-[18/Feb/2026 10:35:35] "POST /accounts/login/ HTTP/1.1" 302 0
-[18/Feb/2026 10:35:35] "GET /trading/dashboard/ HTTP/1.1" 200 10867
-[18/Feb/2026 10:35:36] "GET /trading/portfolios/create/ HTTP/1.1" 200 2015
+[18/Feb/2026 11:37:24] "GET /accounts/login/ HTTP/1.1" 200 10588
+[18/Feb/2026 11:37:24] "GET /static/css/theme.css HTTP/1.1" 200 3665
+[18/Feb/2026 11:37:24] "GET /static/css/styles.css HTTP/1.1" 200 487
+[18/Feb/2026 11:37:24] "GET /static/js/main.js HTTP/1.1" 200 0
+[18/Feb/2026 11:37:25] "POST /accounts/login/ HTTP/1.1" 302 0
+[18/Feb/2026 11:37:25] "GET /trading/dashboard/ HTTP/1.1" 200 22193
+[18/Feb/2026 11:37:25] "GET /trading/trade/ HTTP/1.1" 200 14592
+[18/Feb/2026 11:38:19] "GET /accounts/login/ HTTP/1.1" 200 10588
+[18/Feb/2026 11:38:20] "GET /static/css/theme.css HTTP/1.1" 200 3665
+[18/Feb/2026 11:38:20] "GET /static/css/styles.css HTTP/1.1" 200 487
+[18/Feb/2026 11:38:20] "GET /static/js/main.js HTTP/1.1" 200 0
+[18/Feb/2026 11:38:20] "POST /accounts/login/ HTTP/1.1" 302 0
+[18/Feb/2026 11:38:20] "GET /trading/dashboard/ HTTP/1.1" 200 22193
+[18/Feb/2026 11:38:21] "GET /trading/trade/ HTTP/1.1" 200 14592
+[18/Feb/2026 11:39:12] "GET /accounts/login/ HTTP/1.1" 200 10588
+[18/Feb/2026 11:39:12] "GET /static/css/theme.css HTTP/1.1" 200 3665
+[18/Feb/2026 11:39:12] "GET /static/css/styles.css HTTP/1.1" 200 487
+[18/Feb/2026 11:39:12] "GET /static/js/main.js HTTP/1.1" 200 0
+[18/Feb/2026 11:39:13] "POST /accounts/login/ HTTP/1.1" 302 0
+[18/Feb/2026 11:39:13] "GET /trading/dashboard/ HTTP/1.1" 200 22193
+[18/Feb/2026 11:39:13] "GET /trading/stocks/ HTTP/1.1" 200 3993
+[18/Feb/2026 11:39:14] "GET /trading/trade/1/ HTTP/1.1" 200 8231
+Internal Server Error: /trading/ajax/calc-order/
+[18/Feb/2026 11:39:14] "POST /trading/ajax/calc-order/ HTTP/1.1" 500 77
+/app/manage.py changed, reloading.
+Performing system checks...
+
+System check identified no issues (0 silenced).
+February 18, 2026 - 11:36:21
+Django version 4.2.28, using settings 'papertrading.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+Watching for file changes with StatReloader

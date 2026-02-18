@@ -306,7 +306,11 @@ def trade_stock(http_request, stock_id=None):
     }
 
     if http_request.headers.get('HX-Request') == 'true':
-        return render(http_request, 'trading/partials/modal_trade_stock.html', context)
+        target = http_request.headers.get('HX-Target')
+        if target == 'modal-container':
+            return render(http_request, 'trading/partials/modal_trade_stock.html', context)
+        else:
+            return render(http_request, 'trading/partials/trade_content.html', context)
 
     return render(http_request, 'trading/trade.html', context)
 
