@@ -133,7 +133,8 @@ def dashboard(request):
     portfolios = Portfolio.objects.filter(user=request.user, visibility='PUBLIC')
 
     if not portfolios.exists():
-        return render(request, 'trading/dashboard.html', {
+        template_name = 'trading/partials/dashboard_content.html' if request.headers.get('HX-Request') == 'true' else 'trading/dashboard.html'
+        return render(request, template_name, {
             'portfolios': None, 'holdings': [], 'transactions': [], 'performance_data': json.dumps([])
         })
 
@@ -170,6 +171,9 @@ def dashboard(request):
         'profit_loss_percentage': profit_loss_percentage,
         'initial_cash': initial_cash,
     }
+
+    if request.headers.get('HX-Request') == 'true':
+        return render(request, 'trading/partials/dashboard_content.html', context)
     return render(request, 'trading/dashboard.html', context)
 
 def generate_performance_data(portfolio):
@@ -199,7 +203,11 @@ def stock_list(request):
     query = request.GET.get('q')
     if query:
         stocks = stocks.filter(Q(symbol__icontains=query) | Q(name__icontains=query))
-    return render(request, 'trading/stock_list.html', {'stocks': stocks, 'query': query})
+
+    context = {'stocks': stocks, 'query': query}
+    if request.headers.get('HX-Request') == 'true':
+        return render(request, 'trading/partials/stock_list_content.html', context)
+    return render(request, 'trading/stock_list.html', context)
 
 def stock_search(request):
     query = request.GET.get('q', '')
@@ -225,6 +233,8 @@ def trade_stock(http_request, stock_id=None):
     portfolios = Portfolio.objects.filter(user=http_request.user, visibility='PUBLIC')
     if not portfolios.exists():
         messages.error(http_request, "You need to create a portfolio first!")
+        if http_request.headers.get('HX-Request') == 'true':
+             return HttpResponse(status=204, headers={'HX-Redirect': '/portfolios/create/'})
         return redirect('trading:create_portfolio')
 
     portfolio_id = http_request.session.get('active_portfolio_id')
@@ -268,11 +278,14 @@ def trade_stock(http_request, stock_id=None):
             try:
                 selected_portfolio.generate_report()
             except Exception as e:
-                # Log error but don't fail transaction
                 print(f"Failed to generate report: {e}")
 
             http_request.session['active_portfolio_id'] = selected_portfolio.id
             messages.success(http_request, f"Successfully {transaction.transaction_type.lower()}ed {transaction.quantity} shares of {transaction.stock.symbol}")
+
+            if http_request.headers.get('HX-Request') == 'true':
+                return HttpResponse(status=204, headers={'HX-Trigger': 'portfolioCreated'})
+
             return redirect('trading:dashboard')
     else:
         form = TradeForm(initial=initial_data, user=http_request.user)
@@ -291,6 +304,10 @@ def trade_stock(http_request, stock_id=None):
         'stocks_count': stocks.count(),
         'portfolio_cash_balance': float(portfolio.cash_balance) if portfolio else 0
     }
+
+    if http_request.headers.get('HX-Request') == 'true':
+        return render(http_request, 'trading/partials/modal_trade_stock.html', context)
+
     return render(http_request, 'trading/trade.html', context)
 
 @csrf_exempt
@@ -364,7 +381,10 @@ def transaction_list(request):
     portfolios = Portfolio.objects.filter(user=request.user, visibility='PUBLIC')
 
     if not portfolios.exists():
-        return render(request, 'trading/transaction_list.html', {'transactions': [], 'portfolios': None})
+        context = {'transactions': [], 'portfolios': None}
+        if request.headers.get('HX-Request') == 'true':
+            return render(request, 'trading/partials/transaction_list_content.html', context)
+        return render(request, 'trading/transaction_list.html', context)
 
     if portfolio_id:
         try:
@@ -376,13 +396,19 @@ def transaction_list(request):
 
     transactions = portfolio.transaction_set.all().select_related('stock').order_by('-timestamp')
     context = {'transactions': transactions, 'portfolio': portfolio, 'portfolios': portfolios}
+
+    if request.headers.get('HX-Request') == 'true':
+        return render(request, 'trading/partials/transaction_list_content.html', context)
     return render(request, 'trading/transaction_list.html', context)
 
 @login_required
 def reports(request):
     user_portfolios = Portfolio.objects.filter(user=request.user)
     reports = PortfolioReport.objects.filter(portfolio__in=user_portfolios).order_by('-report_date', '-created_at')
-    return render(request, 'trading/reports.html', {'reports': reports})
+    context = {'reports': reports}
+    if request.headers.get('HX-Request') == 'true':
+        return render(request, 'trading/partials/reports_content.html', context)
+    return render(request, 'trading/reports.html', context)
 
 @login_required
 def watchlists(request):
@@ -457,20 +483,29 @@ def profile(request):
 
 def portfolio_list(request):
     portfolios = Portfolio.objects.filter(user=request.user) # All user portfolios
-    return render(request, 'trading/portfolio_list.html', {'portfolios': portfolios})
+    context = {'portfolios': portfolios}
+    if request.headers.get('HX-Request') == 'true':
+        return render(request, 'trading/partials/portfolio_list_content.html', context)
+    return render(request, 'trading/portfolio_list.html', context)
 
 @login_required
 def create_portfolio(request):
+    form = PortfolioForm(request.POST or None)
     if request.method == 'POST':
-        form = PortfolioForm(request.POST)
         if form.is_valid():
             portfolio = form.save(commit=False)
             portfolio.user = request.user
             portfolio.save()
             messages.success(request, f"Portfolio '{portfolio.name}' created successfully!")
+
+            if request.headers.get('HX-Request') == 'true':
+                return HttpResponse(status=204, headers={'HX-Trigger': 'portfolioCreated'})
+
             return redirect('trading:portfolio_list')
-    else:
-        form = PortfolioForm()
+
+    if request.headers.get('HX-Request') == 'true':
+        return render(request, 'trading/partials/modal_create_portfolio.html', {'form': form})
+
     return render(request, 'trading/create_portfolio.html', {'form': form})
 
 @login_required
@@ -492,7 +527,10 @@ def report_detail(request, pk):
     elif request.GET.get('export') == 'excel':
         return generate_excel_report(report)
 
-    return render(request, 'trading/report_detail.html', {'report': report, 'recent_transactions': recent_transactions})
+    context = {'report': report, 'recent_transactions': recent_transactions}
+    if request.headers.get('HX-Request') == 'true':
+        return render(request, 'trading/partials/report_detail_content.html', context)
+    return render(request, 'trading/report_detail.html', context)
 
 @login_required
 @require_GET

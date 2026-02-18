@@ -1,0 +1,50 @@
+{% load humanize %}
+
+<div class="container mt-4 fade-me-in">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Your Portfolios</h2>
+        <a href="{% url 'trading:create_portfolio' %}" class="btn btn-primary"
+           hx-get="{% url 'trading:create_portfolio' %}"
+           hx-target="#modal-container"
+           data-bs-toggle="modal"
+           data-bs-target="#modal-container">
+            <i class="bi bi-plus-circle"></i> Create New Portfolio
+        </a>
+    </div>
+
+    {% if portfolios %}
+    <div class="list-group">
+        {% for portfolio in portfolios %}
+        <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+            <div>
+                <h5>
+                    <a href="{% url 'trading:dashboard' %}?portfolio={{ portfolio.pk }}"
+                       class="text-decoration-none"
+                       hx-get="{% url 'trading:dashboard' %}?portfolio={{ portfolio.pk }}"
+                       hx-target="#main-content" hx-swap="innerHTML swap:200ms"
+                       hx-push-url="true">
+                        {{ portfolio.name|default:"Unnamed Portfolio" }}
+                    </a>
+                </h5>
+                <small class="text-muted">Cash: ₹{{ portfolio.cash_balance|floatformat:2|intcomma }}</small>
+            </div>
+            <div>
+                <!-- Delete could be a modal, but standard page load for confirm is safe for now.
+                     Or better: load confirm page into main-content -->
+                <a href="{% url 'trading:portfolio_delete' portfolio.pk %}"
+                   class="btn btn-sm btn-outline-danger"
+                   hx-get="{% url 'trading:portfolio_delete' portfolio.pk %}"
+                   hx-target="#main-content" hx-swap="innerHTML swap:200ms"
+                   hx-push-url="true">
+                    Delete
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info" role="alert">
+        You don't have any portfolios yet. Create one to get started!
+    </div>
+    {% endif %}
+</div>

@@ -1,0 +1,182 @@
+{% load humanize %}
+{% load django_bootstrap5 %}
+
+<div class="modal fade" id="tradeStockModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{% url 'trading:trade' %}"
+                  hx-post="{% url 'trading:trade' %}"
+                  hx-target="#modal-container"
+                  hx-indicator="#htmx-indicator">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-arrow-left-right"></i>
+                        {% if selected_stock %}
+                            Trade {{ selected_stock.symbol }}
+                        {% else %}
+                            Trade Stocks
+                        {% endif %}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    {% if stocks_count == 0 %}
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            No stocks available.
+                        </div>
+                    {% else %}
+
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <!-- Portfolio Selection -->
+                        {% if portfolios.count > 1 %}
+                        <div class="mb-3">
+                            <label class="form-label">Portfolio</label>
+                            {{ form.portfolio }}
+                        </div>
+                        {% else %}
+                            <input type="hidden" name="portfolio" value="{{ portfolios.first.id }}">
+                        {% endif %}
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Stock</label>
+                                    {{ form.stock }}
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Type</label>
+                                    {{ form.transaction_type }}
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Quantity</label>
+                                    {{ form.quantity }}
+                                    <div class="form-text" id="max-shares-info" style="display: none;">
+                                        You own: <span id="owned-shares">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Price (₹)</label>
+                                    {{ form.price_per_share }}
+                                    <div class="form-text">
+                                        Current: <span id="current-price">₹{{ selected_stock.current_price|default:"0.00" }}</span>
+                                    </div>
+                                </div>
+                                <div class="card bg-light">
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title small">Summary</h6>
+                                        <div class="d-flex justify-content-between small">
+                                            <span>Total:</span>
+                                            <span id="summary-total" class="fw-bold">₹0.00</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between small">
+                                            <span>Cash After:</span>
+                                            <span id="summary-cash-after">₹{{ portfolio.cash_balance|floatformat:2 }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Execute Trade</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        var modalEl = document.getElementById('tradeStockModal');
+        var modal = new bootstrap.Modal(modalEl);
+        modal.show();
+
+        modalEl.addEventListener('hidden.bs.modal', function () {
+            this.remove();
+        });
+
+        // Trade Calculation Logic
+        var stockSelect = modalEl.querySelector('#id_stock');
+        var quantityInput = modalEl.querySelector('#id_quantity');
+        var priceInput = modalEl.querySelector('#id_price_per_share');
+        var transactionTypeSelect = modalEl.querySelector('#id_transaction_type');
+        var portfolioSelect = modalEl.querySelector('#id_portfolio');
+
+        var summaryTotal = modalEl.querySelector('#summary-total');
+        var summaryCashAfter = modalEl.querySelector('#summary-cash-after');
+        var currentPriceSpan = modalEl.querySelector('#current-price');
+        var ownedSharesSpan = modalEl.querySelector('#owned-shares');
+        var maxSharesInfo = modalEl.querySelector('#max-shares-info');
+
+        var initialCash = parseFloat('{{ portfolio.cash_balance }}') || 0;
+
+        function updateSummary() {
+             var stockId = stockSelect ? stockSelect.value : null;
+             var quantity = parseInt(quantityInput.value) || 0;
+             var price = parseFloat(priceInput.value) || 0;
+             var transactionType = transactionTypeSelect ? transactionTypeSelect.value : 'BUY';
+             var portfolioId = portfolioSelect ? portfolioSelect.value : '{{ portfolio.id }}';
+
+             if (!stockId) return;
+
+             var total = quantity * price;
+             summaryTotal.textContent = '₹' + total.toFixed(2);
+
+             // AJAX call to calculate order and get stock details
+             fetch('{% url "trading:calculate_order" %}', {
+                 method: 'POST',
+                 headers: {
+                     'Content-Type': 'application/json',
+                     'X-CSRFToken': '{{ csrf_token }}'
+                 },
+                 body: JSON.stringify({
+                     stock_id: stockId,
+                     quantity: quantity,
+                     price: price,
+                     transaction_type: transactionType,
+                     portfolio_id: portfolioId
+                 })
+             })
+             .then(res => res.json())
+             .then(data => {
+                 if (data.success) {
+                     summaryCashAfter.textContent = '₹' + data.cash_after.toFixed(2);
+                     currentPriceSpan.textContent = '₹' + data.current_price.toFixed(2);
+                     if (transactionType === 'SELL') {
+                         maxSharesInfo.style.display = 'block';
+                         ownedSharesSpan.textContent = data.owned_shares;
+                     } else {
+                         maxSharesInfo.style.display = 'none';
+                     }
+
+                     // Auto-fill price if 0 or empty (and user hasn't typed yet?)
+                     // For now, just update the current price display
+                 }
+             })
+             .catch(err => console.error(err));
+        }
+
+        // Event Listeners
+        if (stockSelect) stockSelect.addEventListener('change', updateSummary);
+        if (quantityInput) quantityInput.addEventListener('input', updateSummary);
+        if (priceInput) priceInput.addEventListener('input', updateSummary);
+        if (transactionTypeSelect) transactionTypeSelect.addEventListener('change', updateSummary);
+        if (portfolioSelect) portfolioSelect.addEventListener('change', updateSummary);
+
+        // Initial update
+        updateSummary();
+    })();
+</script>
