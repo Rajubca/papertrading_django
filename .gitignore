@@ -9,4 +9,5 @@ media
 # IDE and OS files
 .vscode
 .idea
-.DS_Store
+.DS_Storestaticfiles/
+.env
