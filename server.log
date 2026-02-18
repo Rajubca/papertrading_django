@@ -1,0 +1,8 @@
+Watching for file changes with StatReloader
+[18/Feb/2026 10:35:33] "GET /accounts/login/ HTTP/1.1" 200 10588
+[18/Feb/2026 10:35:33] "GET /static/css/theme.css HTTP/1.1" 200 3665
+[18/Feb/2026 10:35:33] "GET /static/css/styles.css HTTP/1.1" 200 487
+[18/Feb/2026 10:35:33] "GET /static/js/main.js HTTP/1.1" 200 0
+[18/Feb/2026 10:35:35] "POST /accounts/login/ HTTP/1.1" 302 0
+[18/Feb/2026 10:35:35] "GET /trading/dashboard/ HTTP/1.1" 200 10867
+[18/Feb/2026 10:35:36] "GET /trading/portfolios/create/ HTTP/1.1" 200 2015

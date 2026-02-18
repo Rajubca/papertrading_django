@@ -1,0 +1,161 @@
+{% load humanize %}
+
+<div class="container-fluid fade-me-in">
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2>📊 Stocks List</h2>
+        </div>
+        <div class="col-md-6">
+            <!-- Search Form -->
+            <form method="get" action="{% url 'trading:stock_list' %}" class="d-flex"
+                  hx-get="{% url 'trading:stock_list' %}"
+                  hx-target="#main-content" hx-swap="innerHTML swap:200ms"
+                  hx-push-url="true"
+                  hx-indicator="#htmx-indicator">
+                <div class="input-group">
+                    <input type="text" name="q" class="form-control" placeholder="Search by symbol or name..."
+                           value="{{ query|default:'' }}">
+                    <button class="btn btn-outline-primary" type="submit">
+                        <i class="bi bi-search"></i> Search
+                    </button>
+                    {% if query %}
+                    <button type="button" class="btn btn-outline-secondary"
+                            hx-get="{% url 'trading:stock_list' %}" hx-target="#main-content" hx-swap="innerHTML swap:200ms" hx-push-url="true">
+                        Clear
+                    </button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Search Results Info -->
+    {% if query %}
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="alert alert-info">
+                Search results for: <strong>"{{ query }}"</strong>
+                {% if stocks.count == 0 %}
+                - No stocks found
+                {% else %}
+                - Found {{ stocks.count }} stock{{ stocks.count|pluralize }}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Stocks Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Available Stocks</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Name</th>
+                                    <th class="text-end">Current Price</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stock in stocks %}
+                                <tr>
+                                    <td class="fw-bold">{{ stock.symbol }}</td>
+                                    <td>{{ stock.name }}</td>
+                                    <td class="text-end">₹{{ stock.current_price|floatformat:2|intcomma }}</td>
+                                    <td class="text-center">
+                                        <!-- Stock Detail could be a modal too, but keeping as link for now, maybe HTMX it? -->
+                                        <!-- Let's make it a modal or keep standard. Plan said Trade is modal. -->
+                                        <a href="{% url 'trading:stock_detail' stock.id %}"
+                                           class="btn btn-sm btn-outline-info me-1"
+                                           hx-get="{% url 'trading:stock_detail' stock.id %}"
+                                           hx-target="#main-content" hx-swap="innerHTML swap:200ms"
+                                           hx-push-url="true">
+                                            <i class="bi bi-info-circle"></i> Details
+                                        </a>
+                                        <a href="{% url 'trading:trade_stock' stock.id %}"
+                                           class="btn btn-sm btn-primary"
+                                           hx-get="{% url 'trading:trade_stock' stock.id %}"
+                                           hx-target="#modal-container"
+                                           data-bs-toggle="modal"
+                                           data-bs-target="#modal-container">
+                                            <i class="bi bi-arrow-left-right"></i> Trade
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="bi bi-search" style="font-size: 3rem;"></i>
+                                            <p class="mt-2 mb-1">
+                                                {% if query %}
+                                                No stocks found for "{{ query }}"
+                                                {% else %}
+                                                No stocks available
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if stocks.has_other_pages %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <nav aria-label="Stock pagination">
+                <ul class="pagination justify-content-center">
+                    {% if stocks.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ stocks.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"
+                           hx-get="?page={{ stocks.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"
+                           hx-target="#main-content" hx-swap="innerHTML swap:200ms"
+                           hx-push-url="true">Previous</a>
+                    </li>
+                    {% endif %}
+
+                    {% for i in stocks.paginator.page_range %}
+                    <li class="page-item {% if stocks.number == i %}active{% endif %}">
+                        <a class="page-link" href="?page={{ i }}{% if query %}&q={{ query }}{% endif %}"
+                           hx-get="?page={{ i }}{% if query %}&q={{ query }}{% endif %}"
+                           hx-target="#main-content" hx-swap="innerHTML swap:200ms"
+                           hx-push-url="true">{{ i }}</a>
+                    </li>
+                    {% endfor %}
+
+                    {% if stocks.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ stocks.next_page_number }}{% if query %}&q={{ query }}{% endif %} "
+                           hx-get="?page={{ stocks.next_page_number }}{% if query %}&q={{ query }}{% endif %}"
+                           hx-target="#main-content" hx-swap="innerHTML swap:200ms"
+                           hx-push-url="true">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    // Focus search input
+    var searchInput = document.querySelector('input[name="q"]');
+    if (searchInput && !searchInput.value) {
+        searchInput.focus();
+    }
+</script>
