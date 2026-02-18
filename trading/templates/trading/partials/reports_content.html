@@ -1,0 +1,80 @@
+{% load humanize %}
+
+<div class="container-fluid fade-me-in">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>📊 Portfolio Reports</h2>
+                <form method="post" action="{% url 'trading:generate_report' %}"
+                      hx-post="{% url 'trading:generate_report' %}"
+                      hx-target="#main-content" hx-swap="innerHTML swap:200ms"
+                      hx-push-url="true"
+                      hx-indicator="#htmx-indicator">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Generate New Report
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    {% if reports %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Report Date</th>
+                                    <th>Total Value</th>
+                                    <th>Cash Balance</th>
+                                    <th>Invested Value</th>
+                                    <th>P/L</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for report in reports %}
+                                <tr>
+                                    <td>{{ report.report_date|date:"M d, Y" }}</td>
+                                    <td>₹{{ report.total_value|floatformat:2|intcomma }}</td>
+                                    <td>₹{{ report.cash_balance|floatformat:2|intcomma }}</td>
+                                    <td>₹{{ report.investment_value|floatformat:2|intcomma }}</td>
+                                    <td class="{% if report.profit_loss >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        ₹{{ report.profit_loss|floatformat:2 }}
+                                        ({{ report.profit_loss_percentage|floatformat:2 }}%)
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'trading:report_detail' report.id %}"
+                                           class="btn btn-sm btn-outline-primary"
+                                           hx-get="{% url 'trading:report_detail' report.id %}"
+                                           hx-target="#main-content" hx-swap="innerHTML swap:200ms"
+                                           hx-push-url="true"
+                                           hx-indicator="#htmx-indicator">
+                                            View Details
+                                        </a>
+                                        <a href="{% url 'trading:report_detail' report.id %}?export=pdf"
+                                           class="btn btn-sm btn-outline-secondary"
+                                           target="_blank">
+                                            <i class="bi bi-file-earmark-pdf"></i> Export PDF
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        No reports available. Generate your first report to track your portfolio performance.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

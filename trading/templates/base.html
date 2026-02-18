@@ -8,13 +8,37 @@
     {% bootstrap_css %}
     {% bootstrap_javascript %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{% static 'css/theme.css' %}">
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
     {% block extra_head %}{% endblock %}
+    <style>
+        .htmx-indicator {
+            display: none;
+            z-index: 1050; /* Above modal */
+        }
+        .htmx-request .htmx-indicator {
+            display: block;
+        }
+        .htmx-request.htmx-indicator {
+            display: block;
+        }
+    </style>
 </head>
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+
+    <!-- Global Loading Indicator -->
+    <div id="htmx-indicator" class="htmx-indicator position-fixed top-50 start-50 translate-middle">
+        <div class="spinner-border text-secondary" style="width: 3rem; height: 3rem;" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Modal Container -->
+    <div id="modal-container"></div>
+
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
         <div class="container">
-            <a class="navbar-brand" href="{% url 'trading:dashboard' %}">
+            <a class="navbar-brand" href="{% url 'trading:dashboard' %}" hx-get="{% url 'trading:dashboard' %}" hx-target="#main-content" hx-swap="innerHTML swap:200ms" hx-push-url="true" hx-indicator="#htmx-indicator">
                 <i class="bi bi-graph-up"></i> Paper Trading
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -23,35 +47,73 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'trading:dashboard' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
+                           href="{% url 'trading:dashboard' %}"
+                           hx-get="{% url 'trading:dashboard' %}"
+                           hx-target="#main-content" hx-swap="innerHTML swap:200ms"
+                           hx-push-url="true"
+                           hx-indicator="#htmx-indicator">
                             <i class="bi bi-speedometer2"></i> Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'stock_list' %}active{% endif %}" href="{% url 'trading:stock_list' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'stock_list' %}active{% endif %}"
+                           href="{% url 'trading:stock_list' %}"
+                           hx-get="{% url 'trading:stock_list' %}"
+                           hx-target="#main-content" hx-swap="innerHTML swap:200ms"
+                           hx-push-url="true"
+                           hx-indicator="#htmx-indicator">
                             <i class="bi bi-currency-exchange"></i> Stocks
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'trade' %}active{% endif %}" href="{% url 'trading:trade' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'trade' %}active{% endif %}"
+                           href="{% url 'trading:trade' %}"
+                           hx-get="{% url 'trading:trade' %}"
+                           hx-target="#main-content" hx-swap="innerHTML swap:200ms"
+                           hx-push-url="true"
+                           hx-indicator="#htmx-indicator">
                             <i class="bi bi-cash-stack"></i> Trade
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}" href="{% url 'trading:reports' %}">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}"
+                           href="{% url 'trading:reports' %}"
+                           hx-get="{% url 'trading:reports' %}"
+                           hx-target="#main-content" hx-swap="innerHTML swap:200ms"
+                           hx-push-url="true"
+                           hx-indicator="#htmx-indicator">
                             <i class="bi bi-file-earmark-bar-graph"></i> Reports
                         </a>
                     </li>
-                    <!-- New Portfolio menu item -->
                     <li class="nav-item">
-                        <a class="nav-link {% if 'portfolio' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'trading:portfolio_list' %}">
+                        <a class="nav-link {% if 'portfolio' in request.resolver_match.url_name %}active{% endif %}"
+                           href="{% url 'trading:portfolio_list' %}"
+                           hx-get="{% url 'trading:portfolio_list' %}"
+                           hx-target="#main-content" hx-swap="innerHTML swap:200ms"
+                           hx-push-url="true"
+                           hx-indicator="#htmx-indicator">
                             <i class="bi bi-folder-fill"></i> Portfolios
                         </a>
                     </li>
-                    <!-- New Admin Download menu item, only for superusers -->
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'transaction_list' %}active{% endif %}"
+                           href="{% url 'trading:transaction_list' %}"
+                           hx-get="{% url 'trading:transaction_list' %}"
+                           hx-target="#main-content" hx-swap="innerHTML swap:200ms"
+                           hx-push-url="true"
+                           hx-indicator="#htmx-indicator">
+                            <i class="bi bi-clock-history"></i> History
+                        </a>
+                    </li>
                     {% if request.user.is_superuser %}
                     <li class="nav-item">
-                        <a class="nav-link {% if 'download' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'trading:data_download' %}">
+                        <a class="nav-link {% if 'download' in request.resolver_match.url_name %}active{% endif %}"
+                           href="{% url 'trading:data_download' %}"
+                           hx-get="{% url 'trading:data_download' %}"
+                           hx-target="#main-content" hx-swap="innerHTML swap:200ms"
+                           hx-push-url="true"
+                           hx-indicator="#htmx-indicator">
                             <i class="bi bi-download"></i> Admin Download
                         </a>
                     </li>
@@ -83,7 +145,10 @@
 
     <div class="container">
         {% bootstrap_messages %}
-        {% block content %}{% endblock %}
+        <!-- Main Content Area for HTMX Swapping -->
+        <div id="main-content">
+            {% block content %}{% endblock %}
+        </div>
     </div>
 
     <footer class="mt-5 py-3 bg-light">
@@ -96,7 +161,50 @@
     <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
     <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
     <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <!-- Include Bootstrap JS bundle which includes Modal -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'js/main.js' %}"></script>
     {% block scripts %}{% endblock %}
+
+    <script>
+        // Update active nav link on HTMX navigation
+        document.body.addEventListener('htmx:pushedIntoHistory', function(evt) {
+            let path = evt.detail.path;
+            document.querySelectorAll('.navbar-nav .nav-link').forEach(link => {
+                link.classList.remove('active');
+                // Simple matching, might need adjustment for query params
+                if (link.getAttribute('href') === path || link.getAttribute('href') === window.location.pathname) {
+                    link.classList.add('active');
+                }
+            });
+        });
+
+        // Also update on history popstate (back button)
+        window.addEventListener('popstate', function() {
+             document.querySelectorAll('.navbar-nav .nav-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === window.location.pathname) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
 </body>
 </html>
+<script>
+    document.body.addEventListener('portfolioCreated', function() {
+        var modalEl = document.querySelector('#modal-container .modal');
+        if (modalEl) {
+            var modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+            modalEl.remove(); // Clean up DOM
+        }
+        // Force removal of backdrop if still present
+        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style = '';
+
+        // Reload content
+        htmx.ajax('GET', window.location.href, {target:'#main-content', pushUrl:false});
+    });
+</script>

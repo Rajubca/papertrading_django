@@ -1,40 +1,4 @@
-<!-- Add this to your transaction_list.html template -->
-{% if portfolios and portfolios.count > 1 %}
-<div class="row mb-3">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-body py-2">
-                <div class="d-flex align-items-center">
-                    <label for="portfolioSelect" class="form-label mb-0 me-2">Filter by Portfolio:</label>
-                    <select class="form-select form-select-sm" style="width: auto;" id="portfolioSelect">
-                        <option value="">All Portfolios</option>
-                        {% for p in portfolios %}
-                        <option value="{{ p.id }}" {% if p.id == portfolio.id %}selected{% endif %}>
-                            {{ p.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const portfolioSelect = document.getElementById('portfolioSelect');
-    if (portfolioSelect) {
-        portfolioSelect.addEventListener('change', function() {
-            const portfolioId = this.value;
-            const url = new URL(window.location.href);
-            if (portfolioId) {
-                url.searchParams.set('portfolio', portfolioId);
-            } else {
-                url.searchParams.delete('portfolio');
-            }
-            window.location.href = url.toString();
-        });
-    }
-});
-</script>
-{% endif %}
+{% extends 'base.html' %}
+{% block content %}
+    {% include 'trading/partials/transaction_list_content.html' %}
+{% endblock %}
